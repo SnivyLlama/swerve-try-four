@@ -38,13 +38,9 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
-    // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
-
-    // Schedule `exampleMethodCommand` when the Xbox controller's B button is pressed,
-    // cancelling on release.
     m_driverController.axisMagnitudeGreaterThan(0, 0.01)
-      .or(m_driverController.axisGreaterThan(0, 0)
-      .or(m_driverController.axisMagnitudeGreaterThan(0, 0)))
+      .or(m_driverController.axisGreaterThan(0, 0.01)
+      .or(m_driverController.axisMagnitudeGreaterThan(0, 0.01)))
       .whileTrue(m_drivetrain.driveCommand(m_driverController::getLeftY, m_driverController::getLeftX, m_driverController::getRightX));
   }
 
