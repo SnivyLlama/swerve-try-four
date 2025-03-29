@@ -15,8 +15,17 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 public final class Autos {
   public static Command driveForward(SwerveDrivetrain drivetrain) {
     return drivetrain.driveCommand(()->1.0, ()->0.0, ()->0.0)
-      .withTimeout(Seconds.of(2.0))
+      .withTimeout(Seconds.of(5.0))
       .withName("Go Forward");
+  }
+
+  public static Command driveThenTurn(SwerveDrivetrain drivetrain) {
+    return drivetrain.driveCommand(()->1.0, ()->0.0, ()->0.0)
+      .withTimeout(Seconds.of(5.0))
+      .andThen(
+        drivetrain.driveCommand(()->0.0, ()->0.0, ()->90.0)
+          .withTimeout(Seconds.of(5.0)))
+      .withName("Drive Then Spin");
   }
 
   public static Command driveSystemId(SwerveDrivetrain drivetrain) {

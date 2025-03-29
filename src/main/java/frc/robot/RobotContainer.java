@@ -6,7 +6,9 @@ package frc.robot;
 
 import frc.robot.commands.Autos;
 import frc.robot.subsystems.SwerveDrivetrain;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
@@ -20,11 +22,11 @@ public class RobotContainer {
   // The robot's subsystems and commands are defined here...
   private final SwerveDrivetrain m_drivetrain = new SwerveDrivetrain();
 
-  private final CommandXboxController m_driverController = new CommandXboxController(0);
+  private final CommandJoystick m_controller = new CommandJoystick(0);
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
-    // Configure the trigger bindings
+    SmartDashboard.putData(m_drivetrain);
     configureBindings();
   }
 
@@ -38,10 +40,13 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
-    m_driverController.axisMagnitudeGreaterThan(0, 0.01)
-      .or(m_driverController.axisGreaterThan(0, 0.01)
-      .or(m_driverController.axisMagnitudeGreaterThan(0, 0.01)))
-      .whileTrue(m_drivetrain.driveCommand(m_driverController::getLeftY, m_driverController::getLeftX, m_driverController::getRightX));
+    m_controller.axisMagnitudeGreaterThan(m_controller.getXChannel(), 0.01)
+      .or(m_controller.axisGreaterThan(m_controller.getYChannel(), 0.01)
+      .or(m_controller.axisMagnitudeGreaterThan(m_controller.getZChannel(), 0.01)))
+      .whileTrue(m_drivetrain.driveCommand(
+        m_controller::getX,
+        m_controller::getY,
+        m_controller::getZ));
   }
 
   /**
@@ -50,7 +55,6 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    // An example command will be run in autonomous
-    return Autos.driveForward(m_drivetrain);
+    return Autos.driveThenTurn(m_drivetrain);
   }
 }
