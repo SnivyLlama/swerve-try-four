@@ -35,10 +35,11 @@ public class SwerveDrivetrain extends SubsystemBase {
     // Odometry positions
     private final SendableChooser<Pose2d> m_chooser = new SendableChooser<>();
     private Pose2d m_lastChoice;
+    private final Pose2d ZERO = Pose2d.kZero;
     private final Pose2d RED_START = new Pose2d(
-        Units.inchesToMeters(297.5), Units.inchesToMeters(146.5/2), Rotation2d.k180deg);
+        Units.inchesToMeters(297.5), Units.inchesToMeters(158.5/2), Rotation2d.k180deg);
     private final Pose2d BLUE_START = new Pose2d(
-        Units.inchesToMeters(297.5+46.0+4*12.47), Units.inchesToMeters(146.5+146.5/2), Rotation2d.kZero);
+        Units.inchesToMeters(297.5+96.0), Units.inchesToMeters(158.5+146.5/2), Rotation2d.kZero);
     // x = forward, y = strafe
     private final SwerveModule[] m_modules = new SwerveModule[]{
         new SwerveModule(0, 1, 1),
@@ -90,19 +91,17 @@ public class SwerveDrivetrain extends SubsystemBase {
                 } 
             }, this)
     );
-    private final ADIS16470_IMU m_gyroscope = new ADIS16470_IMU();
+    private final ADIS16470_IMU m_gyroscope = new ADIS16470_IMU(
+        ADIS16470_IMU.IMUAxis.kRoll,
+        ADIS16470_IMU.IMUAxis.kYaw,
+        ADIS16470_IMU.IMUAxis.kPitch);
     // Simulation variable
     private Rotation2d m_heading = Rotation2d.kZero;
 
     public SwerveDrivetrain() {
-        SmartDashboard.putData(m_field);
-        m_chooser.setDefaultOption("Blue Start", BLUE_START);
-        m_chooser.addOption("Red Start", RED_START);
-        m_lastChoice = BLUE_START;
-        SmartDashboard.putData("Starting Pose", m_chooser);
-        for (final SwerveModule module : m_modules) {
-            SmartDashboard.putData(String.format("Swerve Module %d", module.swerveModNum), module);  
-        }
+        addDashboardEntries();
+        m_odometry.resetPose(m_chooser.getSelected());
+
         this.setDefaultCommand(this.run(
             () -> {
                 for (final SwerveModule module : m_modules) module.goToState(0, 0);
@@ -110,9 +109,21 @@ public class SwerveDrivetrain extends SubsystemBase {
         ));
     }
 
+    public void addDashboardEntries() {
+        SmartDashboard.putData(m_field);
+        SmartDashboard.putData("Gyroscope", m_gyroscope);
+        m_chooser.setDefaultOption("Blue Start", BLUE_START);
+        m_chooser.addOption("Red Start", RED_START);
+        m_chooser.addOption("Zero", ZERO);
+        m_lastChoice = BLUE_START;
+        SmartDashboard.putData("Starting Pose", m_chooser);
+        for (final SwerveModule module : m_modules) {
+            SmartDashboard.putData(String.format("Swerve Module %d", module.swerveModNum), module);  
+        }
+    }
+
     @Override
     public void periodic() {
-        SmartDashboard.putNumber("Gyroscope", getGyroscope().getDegrees());
         for (final SwerveModule module : m_modules) module.updatePosition();
         m_odometry.update(getGyroscope(), new SwerveModulePosition[]{
             m_modules[0].getPosition(),
@@ -133,16 +144,16 @@ public class SwerveDrivetrain extends SubsystemBase {
         SwerveModuleState[] states = new SwerveModuleState[]{
             new SwerveModuleState(
                 m_modules[0].getVelocity(),
-                Rotation2d.fromRotations(m_modules[0].getSteerEncoder().getPosition())),
+                Rotation2d.fromRadians(m_modules[0].getSteerAngle())),
             new SwerveModuleState(
                 m_modules[1].getVelocity(),
-                Rotation2d.fromRotations(m_modules[1].getSteerEncoder().getPosition())),
+                Rotation2d.fromRadians(m_modules[1].getSteerAngle())),
             new SwerveModuleState(
                 m_modules[2].getVelocity(),
-                Rotation2d.fromRotations(m_modules[2].getSteerEncoder().getPosition())),
+                Rotation2d.fromRadians(m_modules[2].getSteerAngle())),
             new SwerveModuleState(
                 m_modules[3].getVelocity(),
-                Rotation2d.fromRotations(m_modules[3].getSteerEncoder().getPosition()))
+                Rotation2d.fromRadians(m_modules[3].getSteerAngle()))
         };
         m_heading = m_heading.plus(Rotation2d.fromRadians(m_kinematics.toChassisSpeeds(states).omegaRadiansPerSecond).times(0.02));
     }
@@ -193,11 +204,11 @@ public class SwerveDrivetrain extends SubsystemBase {
         builder.addDoubleProperty("Back Left Velocity", m_modules[3]::getVelocity, null);
         builder.addDoubleProperty("Back Right Angle", m_modules[2]::getSteerAngle, null);
         builder.addDoubleProperty("Back Right Velocity", m_modules[2]::getVelocity, null);
-        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().getRadians(), null);
+        builder.addDoubleProperty("Robot Angle", m_gyroscope::getAngle, null);
     }
 
     private Rotation2d getGyroscope() {
         if (RobotBase.isSimulation()) return m_heading;
-        return Rotation2d.fromDegrees(m_gyroscope.getAngle(m_gyroscope.getRollAxis()));
+        return Rotation2d.fromDegrees(m_gyroscope.getAngle());
     }
 }

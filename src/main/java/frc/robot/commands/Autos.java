@@ -13,10 +13,10 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 public final class Autos {
-  public static Command driveForward(SwerveDrivetrain drivetrain) {
+  public static Command driveForward(SwerveDrivetrain drivetrain, double timeout) {
     return drivetrain.driveCommand(()->1.0, ()->0.0, ()->0.0)
-      .withTimeout(Seconds.of(5.0))
-      .withName("Go Forward");
+      .withTimeout(Seconds.of(timeout))
+      .withName(String.format("Go Forward (%.1fs)", timeout));
   }
 
   public static Command driveThenTurn(SwerveDrivetrain drivetrain) {
@@ -38,7 +38,7 @@ public final class Autos {
       Commands.waitTime(Seconds.of(3.0)),
       drivetrain.quasiDriveIdCommand(Direction.kReverse),
       Commands.waitTime(Seconds.of(3.0))
-    );
+    ).withName("Drive System Id");
   }
 
   public static Command steerSystemId(SwerveDrivetrain drivetrain) {
@@ -51,7 +51,7 @@ public final class Autos {
       Commands.waitTime(Seconds.of(3.0)),
       drivetrain.quasiSteerIdCommand(Direction.kReverse),
       Commands.waitTime(Seconds.of(3.0))
-    );
+    ).withName("Steer System Id");
   }
 
   private Autos() {

@@ -9,6 +9,7 @@ import frc.robot.subsystems.SwerveDrivetrain;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -29,7 +30,9 @@ public class RobotContainer {
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
     SmartDashboard.putData("Swerve Drive", m_drivetrain);
-    m_chooser.addOption("Go Forward", Autos.driveForward(m_drivetrain));
+    SmartDashboard.putData("Command Scheduler", CommandScheduler.getInstance());
+    m_chooser.addOption("Go Forward", Autos.driveForward(m_drivetrain, 5.0));
+    m_chooser.addOption("Go Forward Longer", Autos.driveForward(m_drivetrain, 25.0));
     m_chooser.setDefaultOption("Go Forward And Spin", Autos.driveThenTurn(m_drivetrain));
     m_chooser.addOption("Drive System Id", Autos.driveSystemId(m_drivetrain));
     m_chooser.addOption("Steer System Id", Autos.steerSystemId(m_drivetrain));

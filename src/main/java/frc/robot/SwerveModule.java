@@ -21,6 +21,7 @@ import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.FlywheelSim;
+import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 
 public class SwerveModule implements Sendable {
     // Gearing
@@ -51,8 +52,8 @@ public class SwerveModule implements Sendable {
         m_steerMotor = new SparkMax(steerId, MotorType.kBrushless);
         m_driveMotor = new SparkMax(driveId, MotorType.kBrushless);
         //configureMotor(m_steerMotor, 0.01, 0, 0, 0.02, STEER_GEARING);
-        configureMotor(m_steerMotor, 0.001, 0, 0.0, 0.0, STEER_GEARING);
-        configureMotor(m_driveMotor, 0.01, 0, 0, 0.1, DRIVE_GEARING * DRIVE_CIRCUM);
+        configureMotor(m_steerMotor, 0.0075, 0, 0.001, 0.0, STEER_GEARING);
+        configureMotor(m_driveMotor, 0.01, 0, 0, 0.0, DRIVE_GEARING * DRIVE_CIRCUM);
         m_steerEncoder = m_steerMotor.getEncoder();
         m_driveEncoder = m_driveMotor.getEncoder();
 
@@ -60,15 +61,11 @@ public class SwerveModule implements Sendable {
             m_steerSparkSim = new SparkSim(m_steerMotor, DCMotor.getNEO(1));
             m_driveSparkSim = new SparkSim(m_driveMotor, DCMotor.getNEO(1));
             m_steerSim = new FlywheelSim(
-                LinearSystemId.createFlywheelSystem(DCMotor.getNEO(1),
-                    0.5,
-                    STEER_GEARING),
+                LinearSystemId.identifyVelocitySystem(2.0, 0.1),
                 DCMotor.getNEO(1),
                 NOISE);
             m_driveSim = new FlywheelSim(
-                LinearSystemId.createFlywheelSystem(DCMotor.getNEO(1),
-                    0.5,
-                    DRIVE_GEARING),
+                LinearSystemId.identifyVelocitySystem(2.0, 0.1),
                 DCMotor.getNEO(1),
                 NOISE);
         }
@@ -188,18 +185,20 @@ public class SwerveModule implements Sendable {
     }
 
     public void simulationPeriodic() {
-        m_steerSparkSim.iterate(
-            m_steerSim.getAngularVelocityRPM(),
-            RobotController.getBatteryVoltage(),
-            0.02);
-        m_driveSparkSim.iterate(
-            m_driveSim.getAngularVelocityRPM(),
-            RobotController.getBatteryVoltage(),
-            0.02);
         m_steerSim.setInputVoltage(RobotController.getBatteryVoltage() * m_steerSparkSim.getAppliedOutput());
         m_driveSim.setInputVoltage(RobotController.getBatteryVoltage() * m_driveSparkSim.getAppliedOutput());
         m_steerSim.update(0.02);
         m_driveSim.update(0.02);
+
+        double busVoltage = RoboRioSim.getVInVoltage();
+        m_steerSparkSim.iterate(
+            m_steerSim.getAngularVelocityRPM(),
+            busVoltage,
+            0.02);
+        m_driveSparkSim.iterate(
+            m_driveSim.getAngularVelocityRPM(),
+            busVoltage,
+            0.02);
     }
 
     @Override
