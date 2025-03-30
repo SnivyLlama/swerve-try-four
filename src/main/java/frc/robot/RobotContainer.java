@@ -32,7 +32,8 @@ public class RobotContainer {
     SmartDashboard.putData("Swerve Drive", m_drivetrain);
     SmartDashboard.putData("Command Scheduler", CommandScheduler.getInstance());
     m_chooser.addOption("Go Forward", Autos.driveForward(m_drivetrain, 5.0));
-    m_chooser.addOption("Go Forward Longer", Autos.driveForward(m_drivetrain, 25.0));
+    m_chooser.addOption("Go Forward Longer", Autos.driveForward(m_drivetrain, 50.0));
+    m_chooser.addOption("Spin In Place", Autos.spinInPlace(m_drivetrain, 50.0));
     m_chooser.setDefaultOption("Go Forward And Spin", Autos.driveThenTurn(m_drivetrain));
     m_chooser.addOption("Drive System Id", Autos.driveSystemId(m_drivetrain));
     m_chooser.addOption("Steer System Id", Autos.steerSystemId(m_drivetrain));
@@ -50,9 +51,9 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
-    m_controller.setXChannel(0);
-    m_controller.setYChannel(1);
-    m_controller.setZChannel(4);
+    m_controller.setXChannel(Constants.kAxisX);
+    m_controller.setYChannel(Constants.kAxisY);
+    m_controller.setZChannel(Constants.kAxisZ);
     m_controller.axisMagnitudeGreaterThan(m_controller.getXChannel(), 0.01)
       .or(m_controller.axisGreaterThan(m_controller.getYChannel(), 0.01)
       .or(m_controller.axisMagnitudeGreaterThan(m_controller.getZChannel(), 0.01)))

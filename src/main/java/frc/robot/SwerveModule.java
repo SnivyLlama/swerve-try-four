@@ -25,11 +25,10 @@ import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 
 public class SwerveModule implements Sendable {
     // Gearing
-    private final double STEER_GEARING = 21.5;
-    private final double DRIVE_GEARING = 1.0;
-    private final double DRIVE_CIRCUM = 2 * Math.PI;
     private final double NOISE = 1e-5;
     // Motor and encoder setup
+    // STEER is in terms of rots and RPM
+    // DRIVE is in terms of meters and m/s
     private final SparkMax m_steerMotor;
     private final SparkMax m_driveMotor;
     private final RelativeEncoder m_steerEncoder;
@@ -44,28 +43,31 @@ public class SwerveModule implements Sendable {
     // Simulation purposes
     private SparkSim m_steerSparkSim;
     private SparkSim m_driveSparkSim;
-    private FlywheelSim m_steerSim;
-    private FlywheelSim m_driveSim;
+    private FlywheelSim m_steerFlysim;
+    private FlywheelSim m_driveFlysim;
 
     public SwerveModule(int steerId, int driveId, int swerveNum) {
         swerveModNum = swerveNum;
         m_steerMotor = new SparkMax(steerId, MotorType.kBrushless);
         m_driveMotor = new SparkMax(driveId, MotorType.kBrushless);
         //configureMotor(m_steerMotor, 0.01, 0, 0, 0.02, STEER_GEARING);
-        configureMotor(m_steerMotor, 0.0075, 0, 0.001, 0.0, STEER_GEARING);
-        configureMotor(m_driveMotor, 0.01, 0, 0, 0.0, DRIVE_GEARING * DRIVE_CIRCUM);
+        configureMotor(m_steerMotor,
+            Constants.kPSteer, Constants.kISteer, Constants.kDSteer, Constants.kFFSteer,
+            Constants.kSteerGearing, Constants.kSteerGearing);
+        configureMotor(m_driveMotor, 0.05, 0, 0, 0.17,
+            Constants.kDriveGearing * Constants.kWheelCircum, Constants.kDriveGearing * Constants.kWheelCircum / 60);
         m_steerEncoder = m_steerMotor.getEncoder();
         m_driveEncoder = m_driveMotor.getEncoder();
 
         if (RobotBase.isSimulation()) {
             m_steerSparkSim = new SparkSim(m_steerMotor, DCMotor.getNEO(1));
             m_driveSparkSim = new SparkSim(m_driveMotor, DCMotor.getNEO(1));
-            m_steerSim = new FlywheelSim(
-                LinearSystemId.identifyVelocitySystem(2.0, 0.1),
+            m_steerFlysim = new FlywheelSim(
+                LinearSystemId.identifyVelocitySystem(Constants.kVSteer, Constants.kASteer),
                 DCMotor.getNEO(1),
                 NOISE);
-            m_driveSim = new FlywheelSim(
-                LinearSystemId.identifyVelocitySystem(2.0, 0.1),
+            m_driveFlysim = new FlywheelSim(
+                LinearSystemId.identifyVelocitySystem(Constants.kVDrive, Constants.kADrive),
                 DCMotor.getNEO(1),
                 NOISE);
         }
@@ -73,18 +75,20 @@ public class SwerveModule implements Sendable {
 
     /**
      * @param motor Motor to configure.
-     * @param p Proportional gain
-     * @param i Integral gain
-     * @param d Derivative gain
-     * @param ff Feed Forward gain
-     * @param convFactor Conversion factor
+     * @param p Proportional gain.
+     * @param i Integral gain.
+     * @param d Derivative gain.
+     * @param ff Feed forward gain.
+     * @param posFactor Position conversion factor.
+     * @param velFactor Velocity conversion factor.
      */
-    private void configureMotor(SparkMax motor, double p, double i, double d, double ff, double convFactor) {
+    private void configureMotor(SparkMax motor, double p, double i, double d, double ff, double posFactor, double velFactor) {
         SparkMaxConfig config = new SparkMaxConfig();
         config.closedLoop
             .pidf(p, i, d, ff)
             .feedbackSensor(FeedbackSensor.kPrimaryEncoder);
-        config.encoder.positionConversionFactor(convFactor);
+        config.encoder.positionConversionFactor(posFactor)
+            .velocityConversionFactor(velFactor);
         motor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
     }
 
@@ -128,6 +132,7 @@ public class SwerveModule implements Sendable {
     }
 
     /**
+     * Pretty much used only for sysid.
      * @return Drive encoder.
      */
     public double getDrivePosition() {
@@ -143,10 +148,10 @@ public class SwerveModule implements Sendable {
 
     /**
      * Only used for sysid.
-     * @return Steering encoder.
+     * @return Velocity of the steer motor.
      */
-    public RelativeEncoder getSteerEncoder() {
-        return m_steerEncoder;
+    public double getSteerVelocity() {
+        return m_steerEncoder.getVelocity();
     }
 
     /**
@@ -175,28 +180,27 @@ public class SwerveModule implements Sendable {
     /**
      * Uses built-in PID to go to a certain position.
      * @param drive The desired m/s of the drive motor.
-     * @param steer The desired ?? of the steer motor.
+     * @param steer The desired rotation of the steer motor.
      */
     public void goToState(double drive, double steer) {
         driveSetpoint = drive;
-        steerSetpoint = Units.rotationsToDegrees(steer);
+        steerSetpoint = steer;
         m_steerMotor.getClosedLoopController().setReference(steer, ControlType.kPosition);
         m_driveMotor.getClosedLoopController().setReference(drive, ControlType.kVelocity);
     }
 
     public void simulationPeriodic() {
-        m_steerSim.setInputVoltage(RobotController.getBatteryVoltage() * m_steerSparkSim.getAppliedOutput());
-        m_driveSim.setInputVoltage(RobotController.getBatteryVoltage() * m_driveSparkSim.getAppliedOutput());
-        m_steerSim.update(0.02);
-        m_driveSim.update(0.02);
-
+        m_steerFlysim.setInputVoltage(RobotController.getBatteryVoltage() * m_steerSparkSim.getAppliedOutput());
+        m_driveFlysim.setInputVoltage(RobotController.getBatteryVoltage() * m_driveSparkSim.getAppliedOutput());
+        m_steerFlysim.update(0.02);
+        m_driveFlysim.update(0.02);
         double busVoltage = RoboRioSim.getVInVoltage();
         m_steerSparkSim.iterate(
-            m_steerSim.getAngularVelocityRPM(),
+            m_steerMotor.configAccessor.encoder.getVelocityConversionFactor() * m_steerFlysim.getAngularVelocityRPM(),
             busVoltage,
             0.02);
         m_driveSparkSim.iterate(
-            m_driveSim.getAngularVelocityRPM(),
+            m_driveMotor.configAccessor.encoder.getVelocityConversionFactor() * m_driveFlysim.getAngularVelocityRPM(),
             busVoltage,
             0.02);
     }
@@ -204,8 +208,8 @@ public class SwerveModule implements Sendable {
     @Override
     public void initSendable(SendableBuilder builder) {
         //builder.setSmartDashboardType();
-        builder.addDoubleProperty("Drive Setpoint", () -> driveSetpoint, null);
-        builder.addDoubleProperty("Steer Setpoint", () -> steerSetpoint, null);
+        builder.addDoubleProperty("Drive Setpoint", () -> driveSetpoint, drive -> this.goToState(drive, steerSetpoint));
+        builder.addDoubleProperty("Steer Setpoint", () -> Units.rotationsToDegrees(steerSetpoint), steer -> this.goToState(driveSetpoint, steer));
         builder.addDoubleProperty("Drive Velocity", this::getVelocity, null);
         builder.addDoubleProperty("Steer Position", () -> Units.radiansToDegrees(this.getSteerAngle()), null);
     }

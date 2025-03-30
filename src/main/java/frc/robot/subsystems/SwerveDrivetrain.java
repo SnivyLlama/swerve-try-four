@@ -26,32 +26,25 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Constants;
 import frc.robot.SwerveModule;
 
 public class SwerveDrivetrain extends SubsystemBase {
-    // TODO: double check values
-    private final double ROBOT_WIDTH = Units.inchesToMeters(22);
-    private final double ROBOT_DEPTH = Units.inchesToMeters(22);
     // Odometry positions
     private final SendableChooser<Pose2d> m_chooser = new SendableChooser<>();
     private Pose2d m_lastChoice;
-    private final Pose2d ZERO = Pose2d.kZero;
-    private final Pose2d RED_START = new Pose2d(
-        Units.inchesToMeters(297.5), Units.inchesToMeters(158.5/2), Rotation2d.k180deg);
-    private final Pose2d BLUE_START = new Pose2d(
-        Units.inchesToMeters(297.5+96.0), Units.inchesToMeters(158.5+146.5/2), Rotation2d.kZero);
     // x = forward, y = strafe
     private final SwerveModule[] m_modules = new SwerveModule[]{
-        new SwerveModule(0, 1, 1),
-        new SwerveModule(2, 3, 2),
-        new SwerveModule(4, 5, 3),
-        new SwerveModule(6, 7, 4)
+        new SwerveModule(Constants.kFRSteerId, Constants.kFRDriveId, 1), // top right
+        new SwerveModule(Constants.kFLSteerId, Constants.kFLDriveId, 2), // top left
+        new SwerveModule(Constants.kBRSteerId, Constants.kBRDriveId, 3), // bottom right
+        new SwerveModule(Constants.kBLSteerId, Constants.kBLDriveId, 4) // bottom left
     };
     private final SwerveDriveKinematics m_kinematics = new SwerveDriveKinematics(new Translation2d[]{
-        new Translation2d(ROBOT_DEPTH / 2, ROBOT_WIDTH / 2), // top right
-        new Translation2d(ROBOT_DEPTH / 2, -ROBOT_WIDTH / 2), // top left
-        new Translation2d(-ROBOT_DEPTH / 2, ROBOT_WIDTH / 2), // bottom right
-        new Translation2d(-ROBOT_DEPTH / 2, -ROBOT_WIDTH / 2), // bottom left
+        new Translation2d(Constants.kRobotDepth / 2, Constants.kRobotWidth / 2), // top right
+        new Translation2d(Constants.kRobotDepth / 2, -Constants.kRobotWidth / 2), // top left
+        new Translation2d(-Constants.kRobotDepth / 2, Constants.kRobotWidth / 2), // bottom right
+        new Translation2d(-Constants.kRobotDepth / 2, -Constants.kRobotWidth / 2), // bottom left
     });
     private final SwerveDriveOdometry m_odometry =
         new SwerveDriveOdometry(m_kinematics, Rotation2d.kZero, new SwerveModulePosition[]{
@@ -85,16 +78,16 @@ public class SwerveDrivetrain extends SubsystemBase {
             log -> {
                 for (int i = 0; i < m_modules.length; ++i) {
                     log.motor(String.format("swerve-drive-%d", i))
-                        .angularPosition(Rotations.of(m_modules[i].getSteerEncoder().getPosition()))
-                        .angularVelocity(RotationsPerSecond.of(m_modules[i].getSteerEncoder().getVelocity()))
+                        .angularPosition(Rotations.of(m_modules[i].getSteerVelocity()))
+                        .angularVelocity(RotationsPerSecond.of(m_modules[i].getSteerVelocity()))
                         .voltage(Volts.of(m_modules[i].getSteerVoltage()));
                 } 
             }, this)
     );
     private final ADIS16470_IMU m_gyroscope = new ADIS16470_IMU(
-        ADIS16470_IMU.IMUAxis.kRoll,
-        ADIS16470_IMU.IMUAxis.kYaw,
-        ADIS16470_IMU.IMUAxis.kPitch);
+        Constants.kYawAxis,
+        Constants.kPitchAxis,
+        Constants.kRollAxis);
     // Simulation variable
     private Rotation2d m_heading = Rotation2d.kZero;
 
@@ -106,16 +99,16 @@ public class SwerveDrivetrain extends SubsystemBase {
             () -> {
                 for (final SwerveModule module : m_modules) module.goToState(0, 0);
             }
-        ));
+        ).withName("Default Swerve Command"));
     }
 
     public void addDashboardEntries() {
         SmartDashboard.putData(m_field);
         SmartDashboard.putData("Gyroscope", m_gyroscope);
-        m_chooser.setDefaultOption("Blue Start", BLUE_START);
-        m_chooser.addOption("Red Start", RED_START);
-        m_chooser.addOption("Zero", ZERO);
-        m_lastChoice = BLUE_START;
+        m_chooser.setDefaultOption("Blue Start", Constants.kBlueStart);
+        m_chooser.addOption("Red Start", Constants.kRedStart);
+        m_chooser.addOption("Zero", Constants.kZero);
+        m_lastChoice = Constants.kBlueStart;
         SmartDashboard.putData("Starting Pose", m_chooser);
         for (final SwerveModule module : m_modules) {
             SmartDashboard.putData(String.format("Swerve Module %d", module.swerveModNum), module);  
@@ -207,6 +200,9 @@ public class SwerveDrivetrain extends SubsystemBase {
         builder.addDoubleProperty("Robot Angle", m_gyroscope::getAngle, null);
     }
 
+    /**
+     * @return The value of the gyroscope.
+     */
     private Rotation2d getGyroscope() {
         if (RobotBase.isSimulation()) return m_heading;
         return Rotation2d.fromDegrees(m_gyroscope.getAngle());

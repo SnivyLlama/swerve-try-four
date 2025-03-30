@@ -19,6 +19,12 @@ public final class Autos {
       .withName(String.format("Go Forward (%.1fs)", timeout));
   }
 
+  public static Command spinInPlace(SwerveDrivetrain drivetrain, double timeout) {
+    return drivetrain.driveCommand(()->0.0, ()->0.0, ()->90.0)
+      .withTimeout(Seconds.of(timeout))
+      .withName(String.format("Spinning In Place (%.1fs)", timeout));
+  }
+
   public static Command driveThenTurn(SwerveDrivetrain drivetrain) {
     return drivetrain.driveCommand(()->1.0, ()->0.0, ()->0.0)
       .withTimeout(Seconds.of(5.0))
