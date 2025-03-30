@@ -8,6 +8,7 @@ import static edu.wpi.first.units.Units.Volts;
 
 import java.util.function.DoubleSupplier;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -20,6 +21,7 @@ import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -30,6 +32,13 @@ public class SwerveDrivetrain extends SubsystemBase {
     // TODO: double check values
     private final double ROBOT_WIDTH = Units.inchesToMeters(22);
     private final double ROBOT_DEPTH = Units.inchesToMeters(22);
+    // Odometry positions
+    private final SendableChooser<Pose2d> m_chooser = new SendableChooser<>();
+    private Pose2d m_lastChoice;
+    private final Pose2d RED_START = new Pose2d(
+        Units.inchesToMeters(297.5), Units.inchesToMeters(146.5/2), Rotation2d.k180deg);
+    private final Pose2d BLUE_START = new Pose2d(
+        Units.inchesToMeters(297.5+46.0+4*12.47), Units.inchesToMeters(146.5+146.5/2), Rotation2d.kZero);
     // x = forward, y = strafe
     private final SwerveModule[] m_modules = new SwerveModule[]{
         new SwerveModule(0, 1, 1),
@@ -60,8 +69,8 @@ public class SwerveDrivetrain extends SubsystemBase {
             log -> {
                 for (int i = 0; i < m_modules.length; ++i) {
                     log.motor(String.format("swerve-drive-%d", i))
-                        .linearPosition(Meters.of(m_modules[i].getDriveEncoder().getPosition()))
-                        .linearVelocity(MetersPerSecond.of(m_modules[i].getDriveEncoder().getVelocity()))
+                        .linearPosition(Meters.of(m_modules[i].getDrivePosition()))
+                        .linearVelocity(MetersPerSecond.of(m_modules[i].getVelocity()))
                         .voltage(Volts.of(m_modules[i].getDriveVoltage()));
                 }
             }, this)
@@ -87,6 +96,10 @@ public class SwerveDrivetrain extends SubsystemBase {
 
     public SwerveDrivetrain() {
         SmartDashboard.putData(m_field);
+        m_chooser.setDefaultOption("Blue Start", BLUE_START);
+        m_chooser.addOption("Red Start", RED_START);
+        m_lastChoice = BLUE_START;
+        SmartDashboard.putData("Starting Pose", m_chooser);
         for (final SwerveModule module : m_modules) {
             SmartDashboard.putData(String.format("Swerve Module %d", module.swerveModNum), module);  
         }
@@ -107,6 +120,10 @@ public class SwerveDrivetrain extends SubsystemBase {
             m_modules[2].getPosition(),
             m_modules[3].getPosition()
         });
+        if (m_chooser.getSelected() != m_lastChoice) {
+            m_odometry.resetPose(m_chooser.getSelected());
+            m_lastChoice = m_chooser.getSelected();
+        }
         m_field.setRobotPose(m_odometry.getPoseMeters());
     }
 
@@ -115,16 +132,16 @@ public class SwerveDrivetrain extends SubsystemBase {
         for (final SwerveModule module : m_modules) module.simulationPeriodic();
         SwerveModuleState[] states = new SwerveModuleState[]{
             new SwerveModuleState(
-                m_modules[0].getDriveEncoder().getVelocity(),
+                m_modules[0].getVelocity(),
                 Rotation2d.fromRotations(m_modules[0].getSteerEncoder().getPosition())),
             new SwerveModuleState(
-                m_modules[1].getDriveEncoder().getVelocity(),
+                m_modules[1].getVelocity(),
                 Rotation2d.fromRotations(m_modules[1].getSteerEncoder().getPosition())),
             new SwerveModuleState(
-                m_modules[2].getDriveEncoder().getVelocity(),
+                m_modules[2].getVelocity(),
                 Rotation2d.fromRotations(m_modules[2].getSteerEncoder().getPosition())),
             new SwerveModuleState(
-                m_modules[3].getDriveEncoder().getVelocity(),
+                m_modules[3].getVelocity(),
                 Rotation2d.fromRotations(m_modules[3].getSteerEncoder().getPosition()))
         };
         m_heading = m_heading.plus(Rotation2d.fromRadians(m_kinematics.toChassisSpeeds(states).omegaRadiansPerSecond).times(0.02));
@@ -158,7 +175,7 @@ public class SwerveDrivetrain extends SubsystemBase {
                 final SwerveModuleState[] states = m_kinematics.toSwerveModuleStates(
                     new ChassisSpeeds(fwd.getAsDouble(), strafe.getAsDouble(), Units.degreesToRadians(turn.getAsDouble())));
                 for (int i = 0; i < states.length; ++i) {
-                    m_modules[i].goToState(states[i].speedMetersPerSecond, states[i].angle.getDegrees());
+                    m_modules[i].goToState(states[i].speedMetersPerSecond, states[i].angle.getRotations());
                 }
             }
         );
@@ -168,15 +185,15 @@ public class SwerveDrivetrain extends SubsystemBase {
     @Override
     public void initSendable(SendableBuilder builder) {
         builder.setSmartDashboardType("SwerveDrive");
-        builder.addDoubleProperty("Front Left Angle", m_modules[1].getSteerEncoder()::getPosition, null);
-        builder.addDoubleProperty("Front Left Velocity", m_modules[1].getDriveEncoder()::getVelocity, null);
-        builder.addDoubleProperty("Front Right Angle", m_modules[0].getSteerEncoder()::getPosition, null);
-        builder.addDoubleProperty("Front Right Velocity", m_modules[0].getDriveEncoder()::getVelocity, null);
-        builder.addDoubleProperty("Back Left Angle", m_modules[3].getSteerEncoder()::getPosition, null);
-        builder.addDoubleProperty("Back Left Velocity", m_modules[3].getDriveEncoder()::getVelocity, null);
-        builder.addDoubleProperty("Back Right Angle", m_modules[2].getSteerEncoder()::getPosition, null);
-        builder.addDoubleProperty("Back Right Velocity", m_modules[2].getDriveEncoder()::getVelocity, null);
-        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().getDegrees(), null);
+        builder.addDoubleProperty("Front Left Angle", m_modules[1]::getSteerAngle, null);
+        builder.addDoubleProperty("Front Left Velocity", m_modules[1]::getVelocity, null);
+        builder.addDoubleProperty("Front Right Angle", m_modules[0]::getSteerAngle, null);
+        builder.addDoubleProperty("Front Right Velocity", m_modules[0]::getVelocity, null);
+        builder.addDoubleProperty("Back Left Angle", m_modules[3]::getSteerAngle, null);
+        builder.addDoubleProperty("Back Left Velocity", m_modules[3]::getVelocity, null);
+        builder.addDoubleProperty("Back Right Angle", m_modules[2]::getSteerAngle, null);
+        builder.addDoubleProperty("Back Right Velocity", m_modules[2]::getVelocity, null);
+        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().getRadians(), null);
     }
 
     private Rotation2d getGyroscope() {

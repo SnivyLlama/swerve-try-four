@@ -6,6 +6,7 @@ package frc.robot;
 
 import frc.robot.commands.Autos;
 import frc.robot.subsystems.SwerveDrivetrain;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
@@ -19,14 +20,20 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * subsystems, commands, and trigger mappings) should be declared here.
  */
 public class RobotContainer {
-  // The robot's subsystems and commands are defined here...
   private final SwerveDrivetrain m_drivetrain = new SwerveDrivetrain();
+
+  private final SendableChooser<Command> m_chooser = new SendableChooser<>();
 
   private final CommandJoystick m_controller = new CommandJoystick(0);
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
-    SmartDashboard.putData(m_drivetrain);
+    SmartDashboard.putData("Swerve Drive", m_drivetrain);
+    m_chooser.addOption("Go Forward", Autos.driveForward(m_drivetrain));
+    m_chooser.setDefaultOption("Go Forward And Spin", Autos.driveThenTurn(m_drivetrain));
+    m_chooser.addOption("Drive System Id", Autos.driveSystemId(m_drivetrain));
+    m_chooser.addOption("Steer System Id", Autos.steerSystemId(m_drivetrain));
+    SmartDashboard.putData("Autonomous Chooser", m_chooser);
     configureBindings();
   }
 
@@ -40,6 +47,9 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
+    m_controller.setXChannel(0);
+    m_controller.setYChannel(1);
+    m_controller.setZChannel(4);
     m_controller.axisMagnitudeGreaterThan(m_controller.getXChannel(), 0.01)
       .or(m_controller.axisGreaterThan(m_controller.getYChannel(), 0.01)
       .or(m_controller.axisMagnitudeGreaterThan(m_controller.getZChannel(), 0.01)))
@@ -55,6 +65,6 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return Autos.driveThenTurn(m_drivetrain);
+    return m_chooser.getSelected();
   }
 }

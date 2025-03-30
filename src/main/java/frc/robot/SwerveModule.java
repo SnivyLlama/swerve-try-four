@@ -8,11 +8,13 @@ import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
@@ -24,7 +26,7 @@ public class SwerveModule implements Sendable {
     // Gearing
     private final double STEER_GEARING = 21.5;
     private final double DRIVE_GEARING = 1.0;
-    private final double DRIVE_CIRCUM = 1.0;
+    private final double DRIVE_CIRCUM = 2 * Math.PI;
     private final double NOISE = 1e-5;
     // Motor and encoder setup
     private final SparkMax m_steerMotor;
@@ -49,7 +51,7 @@ public class SwerveModule implements Sendable {
         m_steerMotor = new SparkMax(steerId, MotorType.kBrushless);
         m_driveMotor = new SparkMax(driveId, MotorType.kBrushless);
         //configureMotor(m_steerMotor, 0.01, 0, 0, 0.02, STEER_GEARING);
-        configureMotor(m_steerMotor, 0.001, 0, 0, 0.0, STEER_GEARING);
+        configureMotor(m_steerMotor, 0.001, 0, 0.0, 0.0, STEER_GEARING);
         configureMotor(m_driveMotor, 0.01, 0, 0, 0.1, DRIVE_GEARING * DRIVE_CIRCUM);
         m_steerEncoder = m_steerMotor.getEncoder();
         m_driveEncoder = m_driveMotor.getEncoder();
@@ -82,7 +84,9 @@ public class SwerveModule implements Sendable {
      */
     private void configureMotor(SparkMax motor, double p, double i, double d, double ff, double convFactor) {
         SparkMaxConfig config = new SparkMaxConfig();
-        config.closedLoop.pidf(p, i, d, ff);
+        config.closedLoop
+            .pidf(p, i, d, ff)
+            .feedbackSensor(FeedbackSensor.kPrimaryEncoder);
         config.encoder.positionConversionFactor(convFactor);
         motor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
     }
@@ -99,7 +103,7 @@ public class SwerveModule implements Sendable {
      * Update position of swerve module.
      */
     public void updatePosition() {
-        m_position = new SwerveModulePosition(m_driveEncoder.getPosition(), Rotation2d.fromRotations(m_steerEncoder.getPosition()));
+        m_position = new SwerveModulePosition(getDrivePosition(), Rotation2d.fromRotations(m_steerEncoder.getPosition()));
         // push to smartdashboard
     }
 
@@ -107,7 +111,6 @@ public class SwerveModule implements Sendable {
      * @return The position of the swerve module.
      */
     public SwerveModulePosition getPosition() {
-        System.out.println(m_position);
         return m_position;
     }
 
@@ -128,11 +131,17 @@ public class SwerveModule implements Sendable {
     }
 
     /**
-     * Only used for sysid.
      * @return Drive encoder.
      */
-    public RelativeEncoder getDriveEncoder() {
-        return m_driveEncoder;
+    public double getDrivePosition() {
+        return m_driveEncoder.getPosition();
+    }
+
+    /**
+     * @return Velocity of the drive motor.
+     */
+    public double getVelocity() {
+        return m_driveEncoder.getVelocity();
     }
 
     /**
@@ -141,6 +150,13 @@ public class SwerveModule implements Sendable {
      */
     public RelativeEncoder getSteerEncoder() {
         return m_steerEncoder;
+    }
+
+    /**
+     * @return Angle in radians.
+     */
+    public double getSteerAngle() {
+        return Units.rotationsToRadians(m_steerEncoder.getPosition());
     }
 
     /**
@@ -166,7 +182,7 @@ public class SwerveModule implements Sendable {
      */
     public void goToState(double drive, double steer) {
         driveSetpoint = drive;
-        steerSetpoint = steer;
+        steerSetpoint = Units.rotationsToDegrees(steer);
         m_steerMotor.getClosedLoopController().setReference(steer, ControlType.kPosition);
         m_driveMotor.getClosedLoopController().setReference(drive, ControlType.kVelocity);
     }
@@ -184,10 +200,6 @@ public class SwerveModule implements Sendable {
         m_driveSim.setInputVoltage(RobotController.getBatteryVoltage() * m_driveSparkSim.getAppliedOutput());
         m_steerSim.update(0.02);
         m_driveSim.update(0.02);
-        m_steerEncoder.setPosition(
-            m_steerEncoder.getPosition() + 0.02 * m_steerSim.getAngularVelocityRPM());
-        m_driveEncoder.setPosition(
-            m_driveEncoder.getPosition() + 0.02 * m_driveSim.getAngularVelocityRPM());
     }
 
     @Override
@@ -195,5 +207,7 @@ public class SwerveModule implements Sendable {
         //builder.setSmartDashboardType();
         builder.addDoubleProperty("Drive Setpoint", () -> driveSetpoint, null);
         builder.addDoubleProperty("Steer Setpoint", () -> steerSetpoint, null);
+        builder.addDoubleProperty("Drive Velocity", this::getVelocity, null);
+        builder.addDoubleProperty("Steer Position", () -> Units.radiansToDegrees(this.getSteerAngle()), null);
     }
 }

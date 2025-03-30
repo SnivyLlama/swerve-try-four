@@ -39,6 +39,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
+    SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
     SmartDashboard.putNumber("Battery Voltage", RobotController.getBatteryVoltage());
     SmartDashboard.putBoolean("Joystick", DriverStation.isJoystickConnected(0));
     SmartDashboard.putBoolean("FMS", DriverStation.isFMSAttached());
