@@ -12,8 +12,8 @@ public final class Constants {
     public static final int kAxisY = 1;
     public static final int kAxisZ = 4;
     // TODO: double check values
-    public static final double kRobotWidth = Units.inchesToMeters(22);
-    public static final double kRobotDepth = Units.inchesToMeters(22);
+    public static final double kRobotWidth = Units.inchesToMeters(25);
+    public static final double kRobotDepth = Units.inchesToMeters(25);
 
     // TODO: use sysid for these
     public static final double kVSteer = 2.0;
@@ -52,8 +52,16 @@ public final class Constants {
         Units.inchesToMeters(297.5+96.0), Units.inchesToMeters(158.5+146.5/2), Rotation2d.kZero);
     
     // PID constants
-    public static final double kPSteer = 0.04;
+    public static final double kPSteer = 0.15;
     public static final double kISteer = 0.0;
     public static final double kDSteer = 0.001;
     public static final double kFFSteer = 0.0;
+
+    public static final double kPDrive = 0.05;
+    public static final double kIDrive = 0.0;
+    public static final double kDDrive = 0.0;
+    public static final double kFFDrive = 0.17;
+
+    // The one solo simulation variable for now
+    public static final double kSimNoise = 1.1e-5;
 }

@@ -11,8 +11,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -25,7 +23,7 @@ public class RobotContainer {
 
   private final SendableChooser<Command> m_chooser = new SendableChooser<>();
 
-  private final CommandJoystick m_controller = new CommandJoystick(0);
+  private final CommandJoystick m_joystick = new CommandJoystick(0);
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -42,33 +40,30 @@ public class RobotContainer {
   }
 
   /**
-   * Use this method to define your trigger->command mappings. Triggers can be created via the
-   * {@link Trigger#Trigger(java.util.function.BooleanSupplier)} constructor with an arbitrary
-   * predicate, or via the named factories in {@link
-   * edu.wpi.first.wpilibj2.command.button.CommandGenericHID}'s subclasses for {@link
-   * CommandXboxController Xbox}/{@link edu.wpi.first.wpilibj2.command.button.CommandPS4Controller
-   * PS4} controllers or {@link edu.wpi.first.wpilibj2.command.button.CommandJoystick Flight
-   * joysticks}.
+   * Configures joystick bindings to commands.
    */
   private void configureBindings() {
-    m_controller.setXChannel(Constants.kAxisX);
-    m_controller.setYChannel(Constants.kAxisY);
-    m_controller.setZChannel(Constants.kAxisZ);
-    m_controller.axisMagnitudeGreaterThan(m_controller.getXChannel(), 0.01)
-      .or(m_controller.axisGreaterThan(m_controller.getYChannel(), 0.01)
-      .or(m_controller.axisMagnitudeGreaterThan(m_controller.getZChannel(), 0.01)))
+    m_joystick.setXChannel(Constants.kAxisX);
+    m_joystick.setYChannel(Constants.kAxisY);
+    m_joystick.setZChannel(Constants.kAxisZ);
+    m_joystick.axisMagnitudeGreaterThan(m_joystick.getXChannel(), 0.01)
+      .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getYChannel(), 0.01)
+      .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getZChannel(), 0.01)))
       .whileTrue(m_drivetrain.driveCommand(
-        m_controller::getX,
-        m_controller::getY,
-        m_controller::getZ));
+        m_joystick::getX,
+        m_joystick::getY,
+        () -> 120 * m_joystick.getZ())
+        .withName("Joystick Controlling Robot"));
   }
 
   /**
-   * Use this to pass the autonomous command to the main {@link Robot} class.
-   *
-   * @return the command to run in autonomous
+   * @return The command to run in autonomous
    */
   public Command getAutonomousCommand() {
     return m_chooser.getSelected();
+  }
+
+  public double getCurrentDraw() {
+    return m_drivetrain.getCurrentDraw();
   }
 }

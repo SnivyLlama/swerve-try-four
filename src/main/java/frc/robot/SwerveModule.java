@@ -24,8 +24,6 @@ import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 
 public class SwerveModule implements Sendable {
-    // Gearing
-    private final double NOISE = 1e-5;
     // Motor and encoder setup
     // STEER is in terms of rots and RPM
     // DRIVE is in terms of meters and m/s
@@ -54,7 +52,8 @@ public class SwerveModule implements Sendable {
         configureMotor(m_steerMotor,
             Constants.kPSteer, Constants.kISteer, Constants.kDSteer, Constants.kFFSteer,
             Constants.kSteerGearing, Constants.kSteerGearing);
-        configureMotor(m_driveMotor, 0.05, 0, 0, 0.17,
+        configureMotor(m_driveMotor,
+            Constants.kPDrive, Constants.kIDrive, Constants.kDDrive, Constants.kFFDrive,
             Constants.kDriveGearing * Constants.kWheelCircum, Constants.kDriveGearing * Constants.kWheelCircum / 60);
         m_steerEncoder = m_steerMotor.getEncoder();
         m_driveEncoder = m_driveMotor.getEncoder();
@@ -65,11 +64,11 @@ public class SwerveModule implements Sendable {
             m_steerFlysim = new FlywheelSim(
                 LinearSystemId.identifyVelocitySystem(Constants.kVSteer, Constants.kASteer),
                 DCMotor.getNEO(1),
-                NOISE);
+                Constants.kSimNoise);
             m_driveFlysim = new FlywheelSim(
                 LinearSystemId.identifyVelocitySystem(Constants.kVDrive, Constants.kADrive),
                 DCMotor.getNEO(1),
-                NOISE);
+                Constants.kSimNoise);
         }
     }
 
@@ -166,7 +165,7 @@ public class SwerveModule implements Sendable {
      * @return Applied voltage of drive motor.
      */
     public double getDriveVoltage() {
-        return m_driveMotor.getAppliedOutput();
+        return m_driveMotor.getBusVoltage() * m_driveMotor.getAppliedOutput();
     }
 
     /**
@@ -174,7 +173,11 @@ public class SwerveModule implements Sendable {
      * @return Applied voltage of steer motor.
      */
     public double getSteerVoltage() {
-        return m_steerMotor.getAppliedOutput();
+        return m_steerMotor.getBusVoltage() * m_steerMotor.getAppliedOutput();
+    }
+
+    public double getCurrentDraw() {
+        return getDriveVoltage() + getSteerVoltage();
     }
 
     /**

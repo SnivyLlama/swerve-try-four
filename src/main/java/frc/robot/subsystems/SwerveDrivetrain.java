@@ -197,7 +197,7 @@ public class SwerveDrivetrain extends SubsystemBase {
         builder.addDoubleProperty("Back Left Velocity", m_modules[3]::getVelocity, null);
         builder.addDoubleProperty("Back Right Angle", m_modules[2]::getSteerAngle, null);
         builder.addDoubleProperty("Back Right Velocity", m_modules[2]::getVelocity, null);
-        builder.addDoubleProperty("Robot Angle", m_gyroscope::getAngle, null);
+        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().getRadians(), null);
     }
 
     /**
@@ -206,5 +206,9 @@ public class SwerveDrivetrain extends SubsystemBase {
     private Rotation2d getGyroscope() {
         if (RobotBase.isSimulation()) return m_heading;
         return Rotation2d.fromDegrees(m_gyroscope.getAngle());
+    }
+
+    public double getCurrentDraw() {
+        return m_modules[0].getCurrentDraw() + m_modules[1].getCurrentDraw() + m_modules[2].getCurrentDraw() + m_modules[3].getCurrentDraw();
     }
 }
