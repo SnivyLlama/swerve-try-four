@@ -50,8 +50,12 @@ public class RobotContainer {
       .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getYChannel(), 0.01)
       .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getZChannel(), 0.01)))
       .whileTrue(m_drivetrain.driveCommand(
-        m_joystick::getX,
-        m_joystick::getY,
+        () ->
+          Math.abs(m_joystick.getX()) < 1.0e-6 ? 0.0 : m_joystick.getX()
+            * (Constants.kMaxVelocity / Math.sqrt(Math.pow(m_joystick.getX(), 2) + Math.pow(m_joystick.getY(), 2))),
+        () ->
+          Math.abs(m_joystick.getY()) < 1.0e-6 ? 0.0 : m_joystick.getY()
+          * (Constants.kMaxVelocity / Math.sqrt(Math.pow(m_joystick.getX(), 2) + Math.pow(m_joystick.getY(), 2))),
         () -> 120 * m_joystick.getZ())
         .withName("Joystick Controlling Robot"));
   }

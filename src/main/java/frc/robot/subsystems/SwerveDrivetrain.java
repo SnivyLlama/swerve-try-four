@@ -20,6 +20,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.simulation.ADIS16470_IMUSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -88,8 +89,8 @@ public class SwerveDrivetrain extends SubsystemBase {
         Constants.kYawAxis,
         Constants.kPitchAxis,
         Constants.kRollAxis);
-    // Simulation variable
-    private Rotation2d m_heading = Rotation2d.kZero;
+    // Simulation variables
+    private ADIS16470_IMUSim m_gyroSim;
 
     public SwerveDrivetrain() {
         addDashboardEntries();
@@ -100,6 +101,10 @@ public class SwerveDrivetrain extends SubsystemBase {
                 for (final SwerveModule module : m_modules) module.goToState(0, 0);
             }
         ).withName("Default Swerve Command"));
+
+        if (RobotBase.isSimulation()) {
+            m_gyroSim = new ADIS16470_IMUSim(m_gyroscope);
+        }
     }
 
     public void addDashboardEntries() {
@@ -148,7 +153,8 @@ public class SwerveDrivetrain extends SubsystemBase {
                 m_modules[3].getVelocity(),
                 Rotation2d.fromRadians(m_modules[3].getSteerAngle()))
         };
-        m_heading = m_heading.plus(Rotation2d.fromRadians(m_kinematics.toChassisSpeeds(states).omegaRadiansPerSecond).times(0.02));
+        m_gyroSim.setGyroAngleY(Rotation2d.fromDegrees(m_gyroscope.getAngle()).plus(Rotation2d.fromRadians(m_kinematics.toChassisSpeeds(states).omegaRadiansPerSecond).times(0.02)).getDegrees());
+        //m_gyroscope.setGyroAngle(Constants.kYawAxis, m_heading.getDegrees());
     }
 
     public Command quasiDriveIdCommand(SysIdRoutine.Direction direction) {
@@ -179,6 +185,9 @@ public class SwerveDrivetrain extends SubsystemBase {
                 final SwerveModuleState[] states = m_kinematics.toSwerveModuleStates(
                     new ChassisSpeeds(fwd.getAsDouble(), strafe.getAsDouble(), Units.degreesToRadians(turn.getAsDouble())));
                 for (int i = 0; i < states.length; ++i) {
+                    if (Constants.kCosineScale) {
+                        states[i].cosineScale(m_modules[i].getPosition().angle);
+                    }
                     m_modules[i].goToState(states[i].speedMetersPerSecond, states[i].angle.getRotations());
                 }
             }
@@ -204,7 +213,6 @@ public class SwerveDrivetrain extends SubsystemBase {
      * @return The value of the gyroscope.
      */
     private Rotation2d getGyroscope() {
-        if (RobotBase.isSimulation()) return m_heading;
         return Rotation2d.fromDegrees(m_gyroscope.getAngle());
     }
 

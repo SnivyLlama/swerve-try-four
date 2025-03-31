@@ -19,7 +19,6 @@ import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 
@@ -66,7 +65,7 @@ public class SwerveModule implements Sendable {
                 DCMotor.getNEO(1),
                 Constants.kSimNoise);
             m_driveFlysim = new FlywheelSim(
-                LinearSystemId.identifyVelocitySystem(Constants.kVDrive, Constants.kADrive),
+                LinearSystemId.identifyVelocitySystem(Constants.kVDrive * Constants.kWheelRadius, Constants.kADrive * Constants.kWheelRadius),
                 DCMotor.getNEO(1),
                 Constants.kSimNoise);
         }
@@ -177,7 +176,7 @@ public class SwerveModule implements Sendable {
     }
 
     public double getCurrentDraw() {
-        return getDriveVoltage() + getSteerVoltage();
+        return Math.abs(getDriveVoltage()) + Math.abs(getSteerVoltage());
     }
 
     /**
@@ -193,11 +192,11 @@ public class SwerveModule implements Sendable {
     }
 
     public void simulationPeriodic() {
-        m_steerFlysim.setInputVoltage(RobotController.getBatteryVoltage() * m_steerSparkSim.getAppliedOutput());
-        m_driveFlysim.setInputVoltage(RobotController.getBatteryVoltage() * m_driveSparkSim.getAppliedOutput());
+        double busVoltage = RoboRioSim.getVInVoltage();
+        m_steerFlysim.setInputVoltage(busVoltage * m_steerSparkSim.getAppliedOutput());
+        m_driveFlysim.setInputVoltage(busVoltage * m_driveSparkSim.getAppliedOutput());
         m_steerFlysim.update(0.02);
         m_driveFlysim.update(0.02);
-        double busVoltage = RoboRioSim.getVInVoltage();
         m_steerSparkSim.iterate(
             m_steerMotor.configAccessor.encoder.getVelocityConversionFactor() * m_steerFlysim.getAngularVelocityRPM(),
             busVoltage,
