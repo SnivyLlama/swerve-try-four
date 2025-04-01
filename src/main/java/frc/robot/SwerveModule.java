@@ -89,8 +89,7 @@ public class SwerveModule implements Sendable {
         SparkMaxConfig config = new SparkMaxConfig();
         config.closedLoop
             .pidf(p, i, d, ff)
-            .positionWrappingEnabled(true)
-            .positionWrappingInputRange(0, 1)
+            .positionWrappingEnabled(false)
             .feedbackSensor(FeedbackSensor.kPrimaryEncoder);
         config.encoder.positionConversionFactor(posFactor)
             .velocityConversionFactor(velFactor);
@@ -183,7 +182,18 @@ public class SwerveModule implements Sendable {
     }
 
     public Voltage getCurrentDraw() {
-        return Volts.of(Math.abs(getDriveVoltage().magnitude())).plus(Volts.of(Math.abs(getSteerVoltage().magnitude())));
+        return Volts.of(getDriveVoltage().abs(Volts)).plus(Volts.of(getSteerVoltage().abs(Volts)));
+    }
+
+    /**
+     * @param current The current heading.
+     * @param setpoint The setpoint heading.
+     * @return The setpoint adjusted to be the closest rotation to the current.
+     */
+    public static Rotation2d getClosestRotation(Rotation2d current, Rotation2d setpoint) {
+        return Rotation2d.fromDegrees(Rotation2d.fromDegrees(360).times(
+            Math.round(current.getRotations() - setpoint.getRotations())
+        ).getDegrees() + setpoint.getDegrees());
     }
 
     /**
@@ -194,7 +204,9 @@ public class SwerveModule implements Sendable {
     public void goToState(LinearVelocity drive, Rotation2d steer) {
         driveSetpoint = drive;
         steerSetpoint = steer;
-        if (drive != MetersPerSecond.zero()) m_steerMotor.getClosedLoopController().setReference(steer.getRotations(), ControlType.kPosition);
+        if (drive != MetersPerSecond.zero()) m_steerMotor.getClosedLoopController().setReference(
+            getClosestRotation(getSteerAngle(), steer).getRotations(), ControlType.kPosition);
+        //    steer.getRotations(), ControlType.kPosition);
         m_driveMotor.getClosedLoopController().setReference(drive.in(MetersPerSecond), ControlType.kVelocity);
     }
 

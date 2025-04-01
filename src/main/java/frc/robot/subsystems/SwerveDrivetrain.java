@@ -229,7 +229,7 @@ public class SwerveDrivetrain extends SubsystemBase {
         builder.addDoubleProperty("Back Left Velocity", m_modules[3]::getVelocity, null);
         builder.addDoubleProperty("Back Right Angle", () -> m_modules[2].getSteerAngle().getRadians(), null);
         builder.addDoubleProperty("Back Right Velocity", m_modules[2]::getVelocity, null);
-        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().plus(Rotation2d.kCW_Pi_2).getRadians(), null);
+        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().plus(Rotation2d.kCW_Pi_2).plus(m_chooser.getSelected().getRotation()).getRadians(), null);
     }
 
     /**
