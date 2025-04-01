@@ -57,7 +57,7 @@ public class SwerveModule implements Sendable {
         m_steerEncoder = m_steerMotor.getEncoder();
         m_driveEncoder = m_driveMotor.getEncoder();
 
-        if (RobotBase.isSimulation()) {
+        if (RobotBase.isSimulation() ) {
             m_steerSparkSim = new SparkSim(m_steerMotor, DCMotor.getNEO(1));
             m_driveSparkSim = new SparkSim(m_driveMotor, DCMotor.getNEO(1));
             m_steerFlysim = new FlywheelSim(

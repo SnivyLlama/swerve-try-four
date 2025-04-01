@@ -2,8 +2,8 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.MetersPerSecond;
+import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.Rotations;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.Volts;
 
 import java.util.function.DoubleSupplier;
@@ -80,7 +80,7 @@ public class SwerveDrivetrain extends SubsystemBase {
                 for (int i = 0; i < m_modules.length; ++i) {
                     log.motor(String.format("swerve-drive-%d", i))
                         .angularPosition(Rotations.of(m_modules[i].getSteerVelocity()))
-                        .angularVelocity(RotationsPerSecond.of(m_modules[i].getSteerVelocity()))
+                        .angularVelocity(RPM.of(m_modules[i].getSteerVelocity()))
                         .voltage(Volts.of(m_modules[i].getSteerVoltage()));
                 } 
             }, this)
@@ -153,7 +153,7 @@ public class SwerveDrivetrain extends SubsystemBase {
                 m_modules[3].getVelocity(),
                 Rotation2d.fromRadians(m_modules[3].getSteerAngle()))
         };
-        m_gyroSim.setGyroAngleY(Rotation2d.fromDegrees(m_gyroscope.getAngle()).plus(Rotation2d.fromRadians(m_kinematics.toChassisSpeeds(states).omegaRadiansPerSecond).times(0.02)).getDegrees());
+        m_gyroSim.setGyroAngleZ(Rotation2d.fromDegrees(m_gyroscope.getAngle()).plus(Rotation2d.fromRadians(m_kinematics.toChassisSpeeds(states).omegaRadiansPerSecond).times(0.02)).getDegrees());
         //m_gyroscope.setGyroAngle(Constants.kYawAxis, m_heading.getDegrees());
     }
 
@@ -182,8 +182,15 @@ public class SwerveDrivetrain extends SubsystemBase {
     public Command driveCommand(DoubleSupplier fwd, DoubleSupplier strafe, DoubleSupplier turn) {
         return this.run(
             () -> {
+                double fwdVelocity = fwd.getAsDouble();
+                double strafeVelocity = strafe.getAsDouble();
+                double magnitude = Math.hypot(fwdVelocity, strafeVelocity);
+                if (Math.hypot(fwdVelocity, strafeVelocity) > Constants.kMaxVelocity) {
+                    fwdVelocity *= Constants.kMaxVelocity / magnitude;
+                    strafeVelocity *= Constants.kMaxVelocity / magnitude;
+                }
                 final SwerveModuleState[] states = m_kinematics.toSwerveModuleStates(
-                    new ChassisSpeeds(fwd.getAsDouble(), strafe.getAsDouble(), Units.degreesToRadians(turn.getAsDouble())));
+                    new ChassisSpeeds(fwdVelocity, strafeVelocity, Units.degreesToRadians(turn.getAsDouble())));
                 for (int i = 0; i < states.length; ++i) {
                     if (Constants.kCosineScale) {
                         states[i].cosineScale(m_modules[i].getPosition().angle);
@@ -206,7 +213,7 @@ public class SwerveDrivetrain extends SubsystemBase {
         builder.addDoubleProperty("Back Left Velocity", m_modules[3]::getVelocity, null);
         builder.addDoubleProperty("Back Right Angle", m_modules[2]::getSteerAngle, null);
         builder.addDoubleProperty("Back Right Velocity", m_modules[2]::getVelocity, null);
-        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().getRadians(), null);
+        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().plus(Rotation2d.kCW_Pi_2).getRadians(), null);
     }
 
     /**

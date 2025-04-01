@@ -22,12 +22,12 @@ public final class Constants {
     public static final double kADrive = 0.1;
 
     // note: this doesn't mean anything right now except for joystick inputs
-    public static final double kMaxVelocity = 2.0;
+    public static final double kMaxVelocity = 2.5;
 
     // TODO: find gearings and radius
     public static final double kSteerGearing = 21.5;
     public static final double kDriveGearing = 1;
-    public static final double kWheelRadius = Units.inchesToMeters(1.0);
+    public static final double kWheelRadius = Units.inchesToMeters(2.0);
     public static final double kWheelCircum = 2 * Math.PI * kWheelRadius;
 
     // CAN IDs
@@ -57,9 +57,9 @@ public final class Constants {
         Units.inchesToMeters(297.5+96.0), Units.inchesToMeters(158.5+146.5/2), Rotation2d.kZero);
     
     // PID constants
-    public static final double kPSteer = 0.25;
+    public static final double kPSteer = 1.0;
     public static final double kISteer = 0.0;
-    public static final double kDSteer = 0.001;
+    public static final double kDSteer = 0.1;
     public static final double kFFSteer = 0.0;
 
     public static final double kPDrive = 0.05;
