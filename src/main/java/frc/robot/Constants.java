@@ -45,6 +45,7 @@ public final class Constants {
     public static final int kBLSteerId = 6;
 
     public static final boolean kCosineScale = true;
+    public static final boolean kUseHeading = false;
 
     // Gyroscope axes
     public static final IMUAxis kYawAxis = IMUAxis.kZ;
@@ -73,6 +74,10 @@ public final class Constants {
     public static final double kFFDrive = 0.171;
     //public static final double kFFDrive = 2.0;
     //public static final double kFFDrive = 0.0;
+
+    public static final double kPGyro = 1.0;
+    public static final double kIGyro = 0.0;
+    public static final double kDGyro = 0.0;
 
     // The one solo simulation variable for now
     public static final double kSimNoise = 1.1e-5;

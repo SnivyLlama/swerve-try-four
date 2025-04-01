@@ -6,6 +6,10 @@ package frc.robot;
 
 import frc.robot.commands.Autos;
 import frc.robot.subsystems.SwerveDrivetrain;
+
+import static edu.wpi.first.units.Units.DegreesPerSecond;
+
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -50,10 +54,15 @@ public class RobotContainer {
     m_joystick.axisMagnitudeGreaterThan(m_joystick.getXChannel(), 0.01)
       .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getYChannel(), 0.01)
       .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getZChannel(), 0.01)))
-      .whileTrue(m_drivetrain.driveCommand(
+      .whileTrue(
+        Constants.kUseHeading ? m_drivetrain.driveHeadingCommand(
+          () -> Math.abs(m_joystick.getX()) < 1.0e-3 ? 0.0 : m_joystick.getX() * Constants.kMaxVelocity,
+          () -> Math.abs(m_joystick.getY()) < 1.0e-3 ? 0.0 : m_joystick.getY() * Constants.kMaxVelocity,
+          () -> Rotation2d.fromDegrees(180 * m_joystick.getZ()))
+        : m_drivetrain.driveCommand(
         () -> Math.abs(m_joystick.getX()) < 1.0e-3 ? 0.0 : m_joystick.getX() * Constants.kMaxVelocity,
         () -> Math.abs(m_joystick.getY()) < 1.0e-3 ? 0.0 : m_joystick.getY() * Constants.kMaxVelocity,
-        () -> 120 * m_joystick.getZ())
+        () -> DegreesPerSecond.of(120 * m_joystick.getZ()))
         .withName("Joystick Controlling Robot"));
   }
 

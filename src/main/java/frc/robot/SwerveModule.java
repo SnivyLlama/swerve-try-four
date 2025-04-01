@@ -1,6 +1,7 @@
 package frc.robot;
 
 import static edu.wpi.first.units.Units.Meters;
+import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.Volts;
 
 import com.revrobotics.RelativeEncoder;
@@ -18,6 +19,7 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
@@ -36,7 +38,7 @@ public class SwerveModule implements Sendable {
 
     public final int swerveModNum;
     private Rotation2d steerSetpoint = Rotation2d.kZero;
-    private double driveSetpoint = 0.0;
+    private LinearVelocity driveSetpoint = MetersPerSecond.zero();
     
     private SwerveModulePosition m_position = new SwerveModulePosition();
 
@@ -87,6 +89,8 @@ public class SwerveModule implements Sendable {
         SparkMaxConfig config = new SparkMaxConfig();
         config.closedLoop
             .pidf(p, i, d, ff)
+            .positionWrappingEnabled(true)
+            .positionWrappingInputRange(0, 1)
             .feedbackSensor(FeedbackSensor.kPrimaryEncoder);
         config.encoder.positionConversionFactor(posFactor)
             .velocityConversionFactor(velFactor);
@@ -187,11 +191,11 @@ public class SwerveModule implements Sendable {
      * @param drive The desired m/s of the drive motor.
      * @param steer The desired rotation of the steer motor.
      */
-    public void goToState(double drive, Rotation2d steer) {
+    public void goToState(LinearVelocity drive, Rotation2d steer) {
         driveSetpoint = drive;
         steerSetpoint = steer;
-        m_steerMotor.getClosedLoopController().setReference(steer.getRotations(), ControlType.kPosition);
-        m_driveMotor.getClosedLoopController().setReference(drive, ControlType.kVelocity);
+        if (drive != MetersPerSecond.zero()) m_steerMotor.getClosedLoopController().setReference(steer.getRotations(), ControlType.kPosition);
+        m_driveMotor.getClosedLoopController().setReference(drive.in(MetersPerSecond), ControlType.kVelocity);
     }
 
     public void simulationPeriodic() {
@@ -213,7 +217,7 @@ public class SwerveModule implements Sendable {
     @Override
     public void initSendable(SendableBuilder builder) {
         //builder.setSmartDashboardType();
-        builder.addDoubleProperty("Drive Setpoint", () -> driveSetpoint, drive -> this.goToState(drive, steerSetpoint));
+        builder.addDoubleProperty("Drive Setpoint", () -> driveSetpoint.in(MetersPerSecond), drive -> this.goToState(MetersPerSecond.of(drive), steerSetpoint));
         builder.addDoubleProperty("Steer Setpoint", () -> steerSetpoint.getDegrees(), steer -> this.goToState(driveSetpoint, Rotation2d.fromDegrees(steer)));
         builder.addDoubleProperty("Drive Velocity", this::getVelocity, null);
         builder.addDoubleProperty("Steer Position", () -> this.getSteerAngle().getDegrees(), null);

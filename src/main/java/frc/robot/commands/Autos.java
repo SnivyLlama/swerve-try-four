@@ -6,6 +6,7 @@ package frc.robot.commands;
 
 import frc.robot.subsystems.SwerveDrivetrain;
 
+import static edu.wpi.first.units.Units.DegreesPerSecond;
 import static edu.wpi.first.units.Units.Seconds;
 
 import edu.wpi.first.wpilibj2.command.Command;
@@ -14,22 +15,22 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 public final class Autos {
   public static Command driveForward(SwerveDrivetrain drivetrain, double timeout) {
-    return drivetrain.driveCommand(()->1.0, ()->0.0, ()->0.0)
+    return drivetrain.driveCommand(()->1.0, ()->0.0, ()->DegreesPerSecond.of(90))
       .withTimeout(Seconds.of(timeout))
       .withName(String.format("Go Forward (%.1fs)", timeout));
   }
 
   public static Command spinInPlace(SwerveDrivetrain drivetrain, double timeout) {
-    return drivetrain.driveCommand(()->0.0, ()->0.0, ()->90.0)
+    return drivetrain.driveCommand(()->0.0, ()->0.0, ()->DegreesPerSecond.of(90))
       .withTimeout(Seconds.of(timeout))
       .withName(String.format("Spinning In Place (%.1fs)", timeout));
   }
 
   public static Command driveThenTurn(SwerveDrivetrain drivetrain) {
-    return drivetrain.driveCommand(()->1.0, ()->0.0, ()->0.0)
+    return drivetrain.driveCommand(()->1.0, ()->0.0, ()->DegreesPerSecond.zero())
       .withTimeout(Seconds.of(5.0))
       .andThen(
-        drivetrain.driveCommand(()->0.0, ()->0.0, ()->90.0)
+        drivetrain.driveCommand(()->0.0, ()->0.0, ()->DegreesPerSecond.of(90))
           .withTimeout(Seconds.of(5.0)))
       .withName("Drive Then Spin");
   }

@@ -1,11 +1,15 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.DegreesPerSecond;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RPM;
+import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
 
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -14,7 +18,7 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
-import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
@@ -34,6 +38,7 @@ public class SwerveDrivetrain extends SubsystemBase {
     private final SendableChooser<Pose2d> m_chooser = new SendableChooser<>();
     private Pose2d m_lastChoice;
     // x = forward, y = strafe
+    // All setup
     private final SwerveModule[] m_modules = new SwerveModule[]{
         new SwerveModule(Constants.kFRSteerId, Constants.kFRDriveId, 1), // top right
         new SwerveModule(Constants.kFLSteerId, Constants.kFLDriveId, 2), // top left
@@ -54,6 +59,8 @@ public class SwerveDrivetrain extends SubsystemBase {
             m_modules[3].getPosition()
         });
     private final Field2d m_field = new Field2d();
+
+    // SYSTEM IDENTIFICATION ROUTINES
     private final SysIdRoutine m_driveSysIdRoutine = new SysIdRoutine(
         new SysIdRoutine.Config(),
         new SysIdRoutine.Mechanism(
@@ -88,6 +95,10 @@ public class SwerveDrivetrain extends SubsystemBase {
         Constants.kYawAxis,
         Constants.kPitchAxis,
         Constants.kRollAxis);
+    private final PIDController m_gyroPID = new PIDController(
+        Constants.kPGyro,
+        Constants.kIGyro,
+        Constants.kDGyro);
     // Simulation variables
     private ADIS16470_IMUSim m_gyroSim;
 
@@ -97,7 +108,7 @@ public class SwerveDrivetrain extends SubsystemBase {
 
         this.setDefaultCommand(this.run(
             () -> {
-                for (final SwerveModule module : m_modules) module.goToState(0, Rotation2d.kZero);
+                for (final SwerveModule module : m_modules) module.goToState(MetersPerSecond.zero(), Rotation2d.kZero);
             }
         ).withName("Default Swerve Command"));
 
@@ -175,10 +186,10 @@ public class SwerveDrivetrain extends SubsystemBase {
     /**
      * @param fwd Forward rate in m/s.
      * @param strafe Strafing rate in m/s.
-     * @param turn Turning rate in deg/sec.
-     * @return
+     * @param turn The angular velocity.
+     * @return The driving command.
      */
-    public Command driveCommand(DoubleSupplier fwd, DoubleSupplier strafe, DoubleSupplier turn) {
+    public Command driveCommand(DoubleSupplier fwd, DoubleSupplier strafe, Supplier<AngularVelocity> turn) {
         return this.run(
             () -> {
                 double fwdVelocity = fwd.getAsDouble();
@@ -189,14 +200,20 @@ public class SwerveDrivetrain extends SubsystemBase {
                     strafeVelocity *= Constants.kMaxVelocity / magnitude;
                 }
                 final SwerveModuleState[] states = m_kinematics.toSwerveModuleStates(
-                    new ChassisSpeeds(fwdVelocity, strafeVelocity, Units.degreesToRadians(turn.getAsDouble())));
+                    new ChassisSpeeds(fwdVelocity, strafeVelocity, turn.get().in(RadiansPerSecond)));
                 for (int i = 0; i < states.length; ++i) {
                     if (Constants.kCosineScale) {
                         states[i].cosineScale(m_modules[i].getPosition().angle);
                     }
-                    m_modules[i].goToState(states[i].speedMetersPerSecond, states[i].angle);
+                    m_modules[i].goToState(MetersPerSecond.of(states[i].speedMetersPerSecond), states[i].angle);
                 }
             }
+        );
+    }
+
+    public Command driveHeadingCommand(DoubleSupplier fwd, DoubleSupplier strafe, Supplier<Rotation2d> heading) {
+        return this.driveCommand(fwd, strafe, () -> 
+            DegreesPerSecond.of(m_gyroPID.calculate(getGyroscope().getDegrees(), heading.get().getDegrees()))
         );
     }
 
@@ -222,6 +239,9 @@ public class SwerveDrivetrain extends SubsystemBase {
         return Rotation2d.fromDegrees(m_gyroscope.getAngle());
     }
 
+    /**
+     * @return The current voltage drawn from the swerve drivetrain.
+     */
     public Voltage getCurrentDraw() {
         return m_modules[0].getCurrentDraw().plus(m_modules[1].getCurrentDraw()).plus(m_modules[2].getCurrentDraw()).plus(m_modules[3].getCurrentDraw());
     }
