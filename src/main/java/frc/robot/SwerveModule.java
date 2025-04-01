@@ -1,5 +1,8 @@
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Meters;
+import static edu.wpi.first.units.Units.Volts;
+
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkSim;
@@ -14,7 +17,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
-import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
@@ -32,7 +35,7 @@ public class SwerveModule implements Sendable {
     private final RelativeEncoder m_driveEncoder;
 
     public final int swerveModNum;
-    private double steerSetpoint = 0.0;
+    private Rotation2d steerSetpoint = Rotation2d.kZero;
     private double driveSetpoint = 0.0;
     
     private SwerveModulePosition m_position = new SwerveModulePosition();
@@ -53,7 +56,7 @@ public class SwerveModule implements Sendable {
             Constants.kSteerGearing, Constants.kSteerGearing);
         configureMotor(m_driveMotor,
             Constants.kPDrive, Constants.kIDrive, Constants.kDDrive, Constants.kFFDrive,
-            Constants.kDriveGearing * Constants.kWheelCircum, Constants.kDriveGearing * Constants.kWheelCircum / 60);
+            Constants.kWheelCircum.times(Constants.kDriveGearing).in(Meters), Constants.kWheelCircum.times(Constants.kDriveGearing).div(60).in(Meters));
         m_steerEncoder = m_steerMotor.getEncoder();
         m_driveEncoder = m_driveMotor.getEncoder();
 
@@ -65,7 +68,7 @@ public class SwerveModule implements Sendable {
                 DCMotor.getNEO(1),
                 Constants.kSimNoise);
             m_driveFlysim = new FlywheelSim(
-                LinearSystemId.identifyVelocitySystem(Constants.kVDrive * Constants.kWheelRadius, Constants.kADrive * Constants.kWheelRadius),
+                LinearSystemId.identifyVelocitySystem(Constants.kVDrive * Constants.kWheelRadius.in(Meters), Constants.kADrive * Constants.kWheelRadius.in(Meters)),
                 DCMotor.getNEO(1),
                 Constants.kSimNoise);
         }
@@ -131,10 +134,10 @@ public class SwerveModule implements Sendable {
 
     /**
      * Pretty much used only for sysid.
-     * @return Drive encoder.
+     * @return Drive encoder distance.
      */
-    public double getDrivePosition() {
-        return m_driveEncoder.getPosition();
+    public Distance getDrivePosition() {
+        return Meters.of(m_driveEncoder.getPosition());
     }
 
     /**
@@ -153,30 +156,30 @@ public class SwerveModule implements Sendable {
     }
 
     /**
-     * @return Angle in radians.
+     * @return Angle of the swerve module.
      */
-    public double getSteerAngle() {
-        return Units.rotationsToRadians(m_steerEncoder.getPosition());
+    public Rotation2d getSteerAngle() {
+        return Rotation2d.fromRotations(m_steerEncoder.getPosition());
     }
 
     /**
      * Only used for sysid.
      * @return Applied voltage of drive motor.
      */
-    public double getDriveVoltage() {
-        return m_driveMotor.getBusVoltage() * m_driveMotor.getAppliedOutput();
+    public Voltage getDriveVoltage() {
+        return Volts.of(m_driveMotor.getBusVoltage()).times(m_driveMotor.getAppliedOutput());
     }
 
     /**
      * Only used for sysid.
      * @return Applied voltage of steer motor.
      */
-    public double getSteerVoltage() {
-        return m_steerMotor.getBusVoltage() * m_steerMotor.getAppliedOutput();
+    public Voltage getSteerVoltage() {
+        return Volts.of(m_steerMotor.getBusVoltage()).times(m_steerMotor.getAppliedOutput());
     }
 
-    public double getCurrentDraw() {
-        return Math.abs(getDriveVoltage()) + Math.abs(getSteerVoltage());
+    public Voltage getCurrentDraw() {
+        return Volts.of(Math.abs(getDriveVoltage().magnitude())).plus(Volts.of(Math.abs(getSteerVoltage().magnitude())));
     }
 
     /**
@@ -184,10 +187,10 @@ public class SwerveModule implements Sendable {
      * @param drive The desired m/s of the drive motor.
      * @param steer The desired rotation of the steer motor.
      */
-    public void goToState(double drive, double steer) {
+    public void goToState(double drive, Rotation2d steer) {
         driveSetpoint = drive;
         steerSetpoint = steer;
-        m_steerMotor.getClosedLoopController().setReference(steer, ControlType.kPosition);
+        m_steerMotor.getClosedLoopController().setReference(steer.getRotations(), ControlType.kPosition);
         m_driveMotor.getClosedLoopController().setReference(drive, ControlType.kVelocity);
     }
 
@@ -211,8 +214,8 @@ public class SwerveModule implements Sendable {
     public void initSendable(SendableBuilder builder) {
         //builder.setSmartDashboardType();
         builder.addDoubleProperty("Drive Setpoint", () -> driveSetpoint, drive -> this.goToState(drive, steerSetpoint));
-        builder.addDoubleProperty("Steer Setpoint", () -> Units.rotationsToDegrees(steerSetpoint), steer -> this.goToState(driveSetpoint, steer));
+        builder.addDoubleProperty("Steer Setpoint", () -> steerSetpoint.getDegrees(), steer -> this.goToState(driveSetpoint, Rotation2d.fromDegrees(steer)));
         builder.addDoubleProperty("Drive Velocity", this::getVelocity, null);
-        builder.addDoubleProperty("Steer Position", () -> Units.radiansToDegrees(this.getSteerAngle()), null);
+        builder.addDoubleProperty("Steer Position", () -> this.getSteerAngle().getDegrees(), null);
     }
 }

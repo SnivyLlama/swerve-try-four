@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Volts;
+
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotController;
@@ -50,7 +52,7 @@ public class Robot extends TimedRobot {
     CommandScheduler.getInstance().run();
     
     if (RobotBase.isSimulation()) {
-      double vbus = BatterySim.calculateDefaultBatteryLoadedVoltage(m_robotContainer.getCurrentDraw());
+      double vbus = BatterySim.calculateDefaultBatteryLoadedVoltage(m_robotContainer.getCurrentDraw().in(Volts));
       RoboRioSim.setVInVoltage(vbus);
     }
   }

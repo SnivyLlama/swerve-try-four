@@ -1,8 +1,11 @@
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Inches;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.ADIS16470_IMU.IMUAxis;
 
 // basically all the "problems" lie in this file
@@ -27,8 +30,8 @@ public final class Constants {
     // TODO: find gearings and radius
     public static final double kSteerGearing = 21.5;
     public static final double kDriveGearing = 1;
-    public static final double kWheelRadius = Units.inchesToMeters(2.0);
-    public static final double kWheelCircum = 2 * Math.PI * kWheelRadius;
+    public static final Distance kWheelRadius = Inches.of(2.0);
+    public static final Distance kWheelCircum = kWheelRadius.times(2*Math.PI);
 
     // CAN IDs
     public static final int kFRDriveId = 2;

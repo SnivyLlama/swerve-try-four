@@ -6,6 +6,7 @@ package frc.robot;
 
 import frc.robot.commands.Autos;
 import frc.robot.subsystems.SwerveDrivetrain;
+import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -63,7 +64,7 @@ public class RobotContainer {
     return m_chooser.getSelected();
   }
 
-  public double getCurrentDraw() {
+  public Voltage getCurrentDraw() {
     return m_drivetrain.getCurrentDraw();
   }
 }
