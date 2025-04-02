@@ -11,6 +11,8 @@ import static edu.wpi.first.units.Units.DegreesPerSecond;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.units.measure.Voltage;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -26,7 +28,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 public class RobotContainer {
   private final SwerveDrivetrain m_drivetrain = new SwerveDrivetrain();
 
-  private final SendableChooser<Command> m_chooser = new SendableChooser<>();
+  private final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
 
   private final CommandJoystick m_joystick = new CommandJoystick(0);
 
@@ -34,13 +36,18 @@ public class RobotContainer {
   public RobotContainer() {
     SmartDashboard.putData("Swerve Drive", m_drivetrain);
     SmartDashboard.putData("Command Scheduler", CommandScheduler.getInstance());
-    m_chooser.addOption("Go Forward", Autos.driveForward(m_drivetrain, 5.0));
-    m_chooser.addOption("Go Forward Longer", Autos.driveForward(m_drivetrain, 50.0));
-    m_chooser.addOption("Spin In Place", Autos.spinInPlace(m_drivetrain, 50.0));
-    m_chooser.setDefaultOption("Go Forward And Spin", Autos.driveThenTurn(m_drivetrain));
-    m_chooser.addOption("Drive System Id", Autos.driveSystemId(m_drivetrain));
-    m_chooser.addOption("Steer System Id", Autos.steerSystemId(m_drivetrain));
-    SmartDashboard.putData("Autonomous Chooser", m_chooser);
+    m_autoChooser.addOption("Go Forward", Autos.driveForward(m_drivetrain, 5.0));
+    m_autoChooser.addOption("Go Forward Longer", Autos.driveForward(m_drivetrain, 50.0));
+    m_autoChooser.addOption("Spin In Place", Autos.spinInPlace(m_drivetrain, 50.0));
+    m_autoChooser.setDefaultOption("Go Forward And Spin", Autos.driveThenTurn(m_drivetrain));
+    m_autoChooser.addOption("Go To Blue Start", Autos.goToBlueStart(m_drivetrain));
+    m_autoChooser.addOption("Go Forward And Go Right", Autos.driveThenRight(m_drivetrain));
+    m_autoChooser.addOption("Go To All April Tags", Autos.goToAllAprilTags(m_drivetrain));
+    m_autoChooser.addOption("Drive System Id", Autos.driveSystemId(m_drivetrain));
+    m_autoChooser.addOption("Steer System Id", Autos.steerSystemId(m_drivetrain));
+    for (int i = 1; i <= 22; ++i)
+      SmartDashboard.putData(String.format("Go To AprilTag %d", i), m_drivetrain.goToAprilTag(i));
+    SmartDashboard.putData("Autonomous Chooser", m_autoChooser);
     configureBindings();
   }
 
@@ -51,26 +58,39 @@ public class RobotContainer {
     m_joystick.setXChannel(Constants.kAxisX);
     m_joystick.setYChannel(Constants.kAxisY);
     m_joystick.setZChannel(Constants.kAxisZ);
-    m_joystick.axisMagnitudeGreaterThan(m_joystick.getXChannel(), 0.01)
-      .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getYChannel(), 0.01)
-      .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getZChannel(), 0.01)))
-      .whileTrue(
-        Constants.kUseHeading ? m_drivetrain.driveHeadingCommand(
+    if (Constants.kUseHeading) {
+      m_joystick.axisMagnitudeGreaterThan(m_joystick.getXChannel(), 0.01)
+        .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getYChannel(), 0.01))
+        .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getZChannel(), 0.01))
+        .or(m_joystick.axisMagnitudeGreaterThan(Constants.kAxisA, 0.01))
+        .whileTrue(
+          m_drivetrain.driveHeadingCommand(
           () -> Math.abs(m_joystick.getX()) < 1.0e-3 ? 0.0 : m_joystick.getX() * Constants.kMaxVelocity,
           () -> Math.abs(m_joystick.getY()) < 1.0e-3 ? 0.0 : m_joystick.getY() * Constants.kMaxVelocity,
-          () -> Rotation2d.fromDegrees(180 * m_joystick.getZ()))
-        : m_drivetrain.driveCommand(
-        () -> Math.abs(m_joystick.getX()) < 1.0e-3 ? 0.0 : m_joystick.getX() * Constants.kMaxVelocity,
-        () -> Math.abs(m_joystick.getY()) < 1.0e-3 ? 0.0 : m_joystick.getY() * Constants.kMaxVelocity,
-        () -> DegreesPerSecond.of(120 * m_joystick.getZ()))
-        .withName("Joystick Controlling Robot"));
+          () ->
+            Rotation2d.fromRadians(Math.atan2(m_joystick.getRawAxis(Constants.kAxisA), -m_joystick.getZ()))
+            // TODO: CHECK FOR ALLIANCE ERROR
+              .plus(!DriverStation.isFMSAttached() ? Constants.kElasticOffset : DriverStation.getAlliance().get().equals(Alliance.Blue) ? 
+                Constants.kBlueOffset : Constants.kRedOffset))
+          .withName("Joystick Controlling Robot"));
+    } else {
+      m_joystick.axisMagnitudeGreaterThan(m_joystick.getXChannel(), 0.01)
+        .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getYChannel(), 0.01)
+        .or(m_joystick.axisMagnitudeGreaterThan(m_joystick.getZChannel(), 0.01)))
+        .whileTrue(
+          m_drivetrain.driveCommand(
+            () -> Math.abs(m_joystick.getX()) < 1.0e-3 ? 0.0 : m_joystick.getX() * Constants.kMaxVelocity,
+            () -> Math.abs(m_joystick.getY()) < 1.0e-3 ? 0.0 : m_joystick.getY() * Constants.kMaxVelocity,
+            () -> DegreesPerSecond.of(120 * m_joystick.getZ()))
+          .withName("Joystick Controlling Robot"));
+    }
   }
 
   /**
    * @return The command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return m_chooser.getSelected();
+    return m_autoChooser.getSelected();
   }
 
   public Voltage getCurrentDraw() {

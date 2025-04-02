@@ -1,15 +1,19 @@
 package frc.robot.subsystems;
 
-import static edu.wpi.first.units.Units.DegreesPerSecond;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
 
+import java.util.List;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.math.controller.HolonomicDriveController;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -18,11 +22,16 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.trajectory.Trajectory;
+import edu.wpi.first.math.trajectory.TrajectoryConfig;
+import edu.wpi.first.math.trajectory.TrajectoryGenerator;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.ADIS16470_IMUSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -58,8 +67,12 @@ public class SwerveDrivetrain extends SubsystemBase {
             m_modules[2].getPosition(),
             m_modules[3].getPosition()
         });
+    private final AprilTagFieldLayout m_aprilTags = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeAndyMark);
     private final Field2d m_field = new Field2d();
-
+    private final HolonomicDriveController m_controller = new HolonomicDriveController(
+        new PIDController(0.05, 0, 0), new PIDController(0.01, 0, 0), 
+        new ProfiledPIDController(Constants.kPGyro, Constants.kIGyro, Constants.kDGyro,
+            new Constraints(Constants.kMaxAngularVelocity, Constants.kMaxAngularAcceleration)));
     // SYSTEM IDENTIFICATION ROUTINES
     private final SysIdRoutine m_driveSysIdRoutine = new SysIdRoutine(
         new SysIdRoutine.Config(),
@@ -213,8 +226,39 @@ public class SwerveDrivetrain extends SubsystemBase {
 
     public Command driveHeadingCommand(DoubleSupplier fwd, DoubleSupplier strafe, Supplier<Rotation2d> heading) {
         return this.driveCommand(fwd, strafe, () -> 
-            DegreesPerSecond.of(m_gyroPID.calculate(getGyroscope().getDegrees(), heading.get().getDegrees()))
+            RadiansPerSecond.of(m_gyroPID.calculate(getGyroscope().getRadians(), SwerveModule.getClosestRotation(getGyroscope(), heading.get()).getRadians()))
         );
+    }
+
+    public Command followTrajectoryCommand(Trajectory trajectory) {
+        Timer trajTimer = new Timer();
+        return this.startRun(
+            () -> {
+                trajTimer.start();
+            },
+            () -> {
+                ChassisSpeeds speeds = m_controller.calculate(m_odometry.getPoseMeters(), trajectory.sample(trajTimer.get()), getGyroscope());
+                // NOTE: maybe make this cleaner
+                this.driveCommand(
+                    () -> speeds.vxMetersPerSecond,
+                    () -> speeds.vyMetersPerSecond,
+                    () -> RadiansPerSecond.of(speeds.omegaRadiansPerSecond)).execute();;
+            }
+        ).withTimeout(trajectory.getTotalTimeSeconds());
+    }
+
+    public Command goToPosCommand(Pose2d pose) {
+        return this.runOnce(
+            () ->
+                this.followTrajectoryCommand(
+                    TrajectoryGenerator.generateTrajectory(m_odometry.getPoseMeters(), List.of(), pose, new TrajectoryConfig(Constants.kMaxVelocity, Constants.kMaxAcceleration))
+                ).schedule()
+        );
+    }
+
+    public Command goToAprilTag(int aprilTag) {
+        return this.goToPosCommand(m_aprilTags.getTagPose(aprilTag).get().toPose2d())
+            .withName(String.format("Go To AprilTag %d", aprilTag));
     }
 
     // get it to work with elastic's swerve drive widget

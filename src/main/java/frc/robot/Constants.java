@@ -14,6 +14,7 @@ public final class Constants {
     public static final int kAxisX = 0;
     public static final int kAxisY = 1;
     public static final int kAxisZ = 4;
+    public static final int kAxisA = 5; // for use with gyro
     // TODO: double check values
     public static final double kRobotWidth = Units.inchesToMeters(25);
     public static final double kRobotDepth = Units.inchesToMeters(25);
@@ -26,6 +27,9 @@ public final class Constants {
 
     // note: this doesn't mean anything right now except for joystick inputs
     public static final double kMaxVelocity = 2.5;
+    public static final double kMaxAcceleration = 2.5;
+    public static final double kMaxAngularVelocity = 90.0;
+    public static final double kMaxAngularAcceleration = 45.0;
 
     // TODO: find gearings and radius
     public static final double kSteerGearing = 21.5;
@@ -45,7 +49,12 @@ public final class Constants {
     public static final int kBLSteerId = 6;
 
     public static final boolean kCosineScale = true;
-    public static final boolean kUseHeading = false;
+
+    // Absolute heading mode for joystick control
+    public static final boolean kUseHeading = true;
+    public static final Rotation2d kBlueOffset = Rotation2d.kZero;
+    public static final Rotation2d kRedOffset = Rotation2d.k180deg;
+    public static final Rotation2d kElasticOffset = Rotation2d.kCCW_Pi_2;
 
     // Gyroscope axes
     public static final IMUAxis kYawAxis = IMUAxis.kZ;
@@ -75,7 +84,7 @@ public final class Constants {
     //public static final double kFFDrive = 2.0;
     //public static final double kFFDrive = 0.0;
 
-    public static final double kPGyro = 1.0;
+    public static final double kPGyro = 2.5;
     public static final double kIGyro = 0.0;
     public static final double kDGyro = 0.0;
 
