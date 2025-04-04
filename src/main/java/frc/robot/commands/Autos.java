@@ -52,11 +52,33 @@ public final class Autos {
       .withName("Go To Blue Start");
   }
 
+  /*
+   * We don't need to go to all of them.
+   */
   public static Command goToAllAprilTags(SwerveDrivetrain drivetrain) {
-    return drivetrain.runOnce(
-      () -> {
-        for (int i = 1; i <= 22; ++i) drivetrain.goToAprilTag(i).schedule();
-      }
+    return Commands.sequence(
+      drivetrain.goToAprilTag(1),
+      drivetrain.goToAprilTag(2),
+      drivetrain.goToAprilTag(3),
+      drivetrain.goToAprilTag(4),
+      drivetrain.goToAprilTag(5),
+      drivetrain.goToAprilTag(6),
+      drivetrain.goToAprilTag(7),
+      drivetrain.goToAprilTag(8),
+      drivetrain.goToAprilTag(9),
+      drivetrain.goToAprilTag(10),
+      drivetrain.goToAprilTag(11),
+      drivetrain.goToAprilTag(12),
+      drivetrain.goToAprilTag(13),
+      drivetrain.goToAprilTag(14),
+      drivetrain.goToAprilTag(15),
+      drivetrain.goToAprilTag(16),
+      drivetrain.goToAprilTag(17),
+      drivetrain.goToAprilTag(18),
+      drivetrain.goToAprilTag(19),
+      drivetrain.goToAprilTag(20),
+      drivetrain.goToAprilTag(21),
+      drivetrain.goToAprilTag(22)
     );
   }
 

@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.BatterySim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -22,9 +23,11 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
  * this project, you must also update the Main.java file in the project.
  */
 public class Robot extends TimedRobot {
-  private Command m_autonomousCommand;
+  private Command m_autoCommand;
 
   private final RobotContainer m_robotContainer;
+  private final Timer m_autoTimer = new Timer();
+  private final Timer m_teleopTimer = new Timer();
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -43,7 +46,15 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
-    SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
+    // TODO: figure out why this does not work outside of FMS
+    if (DriverStation.isFMSAttached())
+      SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
+    else if (DriverStation.isAutonomousEnabled())
+      SmartDashboard.putNumber("Match Time", m_autoTimer.get());
+    else if (DriverStation.isTeleopEnabled())
+      SmartDashboard.putNumber("Match Time", m_teleopTimer.get());
+    else
+      SmartDashboard.putNumber("Match Time", 0.0);
     SmartDashboard.putNumber("Battery Voltage", RobotController.getBatteryVoltage());
     SmartDashboard.putBoolean("Joystick", DriverStation.isJoystickConnected(0));
     SmartDashboard.putBoolean("FMS", DriverStation.isFMSAttached());
@@ -58,7 +69,10 @@ public class Robot extends TimedRobot {
 
   /** This function is called once each time the robot enters Disabled mode. */
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+    m_autoTimer.stop();
+    m_teleopTimer.stop();
+  }
 
   @Override
   public void disabledPeriodic() {}
@@ -66,11 +80,12 @@ public class Robot extends TimedRobot {
   /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
-    m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+    m_autoCommand = m_robotContainer.getAutonomousCommand();
+    m_autoTimer.reset();
+    m_autoTimer.start();
 
-    // schedule the autonomous command (example)
-    if (m_autonomousCommand != null) {
-      m_autonomousCommand.schedule();
+    if (m_autoCommand != null) {
+      m_autoCommand.schedule();
     }
   }
 
@@ -84,8 +99,10 @@ public class Robot extends TimedRobot {
     // teleop starts running. If you want the autonomous to
     // continue until interrupted by another command, remove
     // this line or comment it out.
-    if (m_autonomousCommand != null) {
-      m_autonomousCommand.cancel();
+    m_teleopTimer.reset();
+    m_teleopTimer.start();
+    if (m_autoCommand != null) {
+      m_autoCommand.cancel();
     }
   }
 

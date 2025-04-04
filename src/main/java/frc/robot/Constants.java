@@ -16,8 +16,10 @@ public final class Constants {
     public static final int kAxisZ = 4;
     public static final int kAxisA = 5; // for use with gyro
     // TODO: double check values
-    public static final double kRobotWidth = Units.inchesToMeters(25);
-    public static final double kRobotDepth = Units.inchesToMeters(25);
+    public static final double kRobotTrackWidth = Units.inchesToMeters(25);
+    public static final double kRobotTrackDepth = Units.inchesToMeters(25);
+    // add on bumpers
+    public static final double kRobotDepth = kRobotTrackDepth + Units.inchesToMeters(3);
 
     // TODO: use sysid for these
     public static final double kVSteer = 2.0;
@@ -26,10 +28,10 @@ public final class Constants {
     public static final double kADrive = 0.1;
 
     // note: this doesn't mean anything right now except for joystick inputs
-    public static final double kMaxVelocity = 2.5;
+    public static final double kMaxVelocity = 4.0;
     public static final double kMaxAcceleration = 2.5;
-    public static final double kMaxAngularVelocity = 90.0;
-    public static final double kMaxAngularAcceleration = 45.0;
+    public static final double kMaxAngularVelocity = Units.degreesToRadians(180);
+    public static final double kMaxAngularAcceleration = Units.degreesToRadians(120);
 
     // TODO: find gearings and radius
     public static final double kSteerGearing = 21.5;
@@ -51,7 +53,7 @@ public final class Constants {
     public static final boolean kCosineScale = true;
 
     // Absolute heading mode for joystick control
-    public static final boolean kUseHeading = true;
+    public static final boolean kUseHeading = false;
     public static final Rotation2d kBlueOffset = Rotation2d.kZero;
     public static final Rotation2d kRedOffset = Rotation2d.k180deg;
     public static final Rotation2d kElasticOffset = Rotation2d.kCCW_Pi_2;
@@ -65,9 +67,9 @@ public final class Constants {
     // Starting poses
     public static final Pose2d kZero = Pose2d.kZero;
     public static final Pose2d kRedStart = new Pose2d(
-        Units.inchesToMeters(297.5), Units.inchesToMeters(158.5/2), Rotation2d.k180deg);
+        Units.inchesToMeters(297.5+96.0), Units.inchesToMeters(158.5/2), Rotation2d.k180deg);
     public static final Pose2d kBlueStart = new Pose2d(
-        Units.inchesToMeters(297.5+96.0), Units.inchesToMeters(158.5+146.5/2), Rotation2d.kZero);
+        Units.inchesToMeters(297.5), Units.inchesToMeters(158.5+146.5/2), Rotation2d.kZero);
     
     // PID constants
     public static final double kPSteer = 1.0;
@@ -84,7 +86,7 @@ public final class Constants {
     //public static final double kFFDrive = 2.0;
     //public static final double kFFDrive = 0.0;
 
-    public static final double kPGyro = 2.5;
+    public static final double kPGyro = 3.2;
     public static final double kIGyro = 0.0;
     public static final double kDGyro = 0.0;
 

@@ -16,6 +16,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
@@ -55,10 +56,10 @@ public class SwerveDrivetrain extends SubsystemBase {
         new SwerveModule(Constants.kBLSteerId, Constants.kBLDriveId, 4) // bottom left
     };
     private final SwerveDriveKinematics m_kinematics = new SwerveDriveKinematics(new Translation2d[]{
-        new Translation2d(Constants.kRobotDepth / 2, Constants.kRobotWidth / 2), // top right
-        new Translation2d(Constants.kRobotDepth / 2, -Constants.kRobotWidth / 2), // top left
-        new Translation2d(-Constants.kRobotDepth / 2, Constants.kRobotWidth / 2), // bottom right
-        new Translation2d(-Constants.kRobotDepth / 2, -Constants.kRobotWidth / 2), // bottom left
+        new Translation2d(Constants.kRobotTrackDepth / 2, Constants.kRobotTrackWidth / 2), // top right
+        new Translation2d(Constants.kRobotTrackDepth / 2, -Constants.kRobotTrackWidth / 2), // top left
+        new Translation2d(-Constants.kRobotTrackDepth / 2, Constants.kRobotTrackWidth / 2), // bottom right
+        new Translation2d(-Constants.kRobotTrackDepth / 2, -Constants.kRobotTrackWidth / 2), // bottom left
     });
     private final SwerveDriveOdometry m_odometry =
         new SwerveDriveOdometry(m_kinematics, Rotation2d.kZero, new SwerveModulePosition[]{
@@ -69,10 +70,16 @@ public class SwerveDrivetrain extends SubsystemBase {
         });
     private final AprilTagFieldLayout m_aprilTags = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeAndyMark);
     private final Field2d m_field = new Field2d();
+    
+    // Trajectory variables
     private final HolonomicDriveController m_controller = new HolonomicDriveController(
-        new PIDController(0.05, 0, 0), new PIDController(0.01, 0, 0), 
-        new ProfiledPIDController(Constants.kPGyro, Constants.kIGyro, Constants.kDGyro,
+        new PIDController(0.01, 0, 0), new PIDController(0.01, 0, 0), 
+        new ProfiledPIDController(
+            Constants.kPGyro, 0.0, 0.0,
             new Constraints(Constants.kMaxAngularVelocity, Constants.kMaxAngularAcceleration)));
+    private Trajectory m_currentTrajectory;
+    private Timer m_trajectoryTimer = new Timer();
+
     // SYSTEM IDENTIFICATION ROUTINES
     private final SysIdRoutine m_driveSysIdRoutine = new SysIdRoutine(
         new SysIdRoutine.Config(),
@@ -104,6 +111,8 @@ public class SwerveDrivetrain extends SubsystemBase {
                 } 
             }, this)
     );
+
+    // Gyroscope setup
     private final ADIS16470_IMU m_gyroscope = new ADIS16470_IMU(
         Constants.kYawAxis,
         Constants.kPitchAxis,
@@ -118,16 +127,17 @@ public class SwerveDrivetrain extends SubsystemBase {
     public SwerveDrivetrain() {
         addDashboardEntries();
         m_odometry.resetPose(m_chooser.getSelected());
+        if (RobotBase.isSimulation()) {
+            m_gyroSim = new ADIS16470_IMUSim(m_gyroscope);
+            m_gyroSim.setGyroAngleZ(m_odometry.getPoseMeters().getRotation().getDegrees());
+        } else
+            m_gyroscope.setGyroAngleZ(m_odometry.getPoseMeters().getRotation().getDegrees());
 
         this.setDefaultCommand(this.run(
             () -> {
                 for (final SwerveModule module : m_modules) module.goToState(MetersPerSecond.zero(), Rotation2d.kZero);
             }
         ).withName("Default Swerve Command"));
-
-        if (RobotBase.isSimulation()) {
-            m_gyroSim = new ADIS16470_IMUSim(m_gyroscope);
-        }
     }
 
     public void addDashboardEntries() {
@@ -141,6 +151,8 @@ public class SwerveDrivetrain extends SubsystemBase {
         for (final SwerveModule module : m_modules) {
             SmartDashboard.putData(String.format("Swerve Module %d", module.swerveModNum), module);  
         }
+        for (int i = 1; i <= 22; ++i)
+            SmartDashboard.putData(String.format("Go To AprilTag %d", i), this.goToAprilTag(i));
     }
 
     @Override
@@ -155,6 +167,10 @@ public class SwerveDrivetrain extends SubsystemBase {
         if (m_chooser.getSelected() != m_lastChoice) {
             m_odometry.resetPose(m_chooser.getSelected());
             m_lastChoice = m_chooser.getSelected();
+            if (RobotBase.isSimulation())
+                m_gyroSim.setGyroAngleZ(m_odometry.getPoseMeters().getRotation().getDegrees());
+            else
+                m_gyroscope.setGyroAngleZ(m_odometry.getPoseMeters().getRotation().getDegrees());
         }
         m_field.setRobotPose(m_odometry.getPoseMeters());
     }
@@ -180,18 +196,38 @@ public class SwerveDrivetrain extends SubsystemBase {
         //m_gyroscope.setGyroAngle(Constants.kYawAxis, m_heading.getDegrees());
     }
 
+    /**
+     * Only for sysid.
+     * @param direction
+     * @return
+     */
     public Command quasiDriveIdCommand(SysIdRoutine.Direction direction) {
         return m_driveSysIdRoutine.quasistatic(direction);
     }
 
+    /**
+     * Only for sysid.
+     * @param direction
+     * @return
+     */
     public Command dynaDriveIdCommand(SysIdRoutine.Direction direction) {
         return m_driveSysIdRoutine.dynamic(direction);
     }
 
+    /**
+     * Only for sysid.
+     * @param direction
+     * @return
+     */
     public Command quasiSteerIdCommand(SysIdRoutine.Direction direction) {
         return m_steerSysIdRoutine.quasistatic(direction);
     }
 
+    /**
+     * Only for sysid.
+     * @param direction
+     * @return
+     */
     public Command dynaSteerIdCommand(SysIdRoutine.Direction direction) {
         return m_steerSysIdRoutine.dynamic(direction);
     }
@@ -230,34 +266,39 @@ public class SwerveDrivetrain extends SubsystemBase {
         );
     }
 
-    public Command followTrajectoryCommand(Trajectory trajectory) {
-        Timer trajTimer = new Timer();
+    public Command followTrajectoryCommand(Supplier<Trajectory> trajectory) {
         return this.startRun(
             () -> {
-                trajTimer.start();
+                m_currentTrajectory = trajectory.get();
+                m_trajectoryTimer.reset();
+                m_trajectoryTimer.start();
             },
             () -> {
-                ChassisSpeeds speeds = m_controller.calculate(m_odometry.getPoseMeters(), trajectory.sample(trajTimer.get()), getGyroscope());
+                ChassisSpeeds speeds = m_controller.calculate(m_odometry.getPoseMeters(), m_currentTrajectory.sample(m_trajectoryTimer.get()), m_currentTrajectory.sample(m_currentTrajectory.getTotalTimeSeconds()).poseMeters.getRotation());
                 // NOTE: maybe make this cleaner
                 this.driveCommand(
                     () -> speeds.vxMetersPerSecond,
                     () -> speeds.vyMetersPerSecond,
                     () -> RadiansPerSecond.of(speeds.omegaRadiansPerSecond)).execute();;
             }
-        ).withTimeout(trajectory.getTotalTimeSeconds());
+        ).onlyWhile(() -> m_currentTrajectory.getTotalTimeSeconds() > m_trajectoryTimer.get());
     }
 
+    /**
+     * @param pose The pose to make a trajectory to
+     * @return
+     */
     public Command goToPosCommand(Pose2d pose) {
-        return this.runOnce(
-            () ->
-                this.followTrajectoryCommand(
-                    TrajectoryGenerator.generateTrajectory(m_odometry.getPoseMeters(), List.of(), pose, new TrajectoryConfig(Constants.kMaxVelocity, Constants.kMaxAcceleration))
-                ).schedule()
+        return this.followTrajectoryCommand(
+            () -> TrajectoryGenerator.generateTrajectory(m_odometry.getPoseMeters(), List.of(), pose, new TrajectoryConfig(Constants.kMaxVelocity, Constants.kMaxAcceleration))
         );
     }
 
     public Command goToAprilTag(int aprilTag) {
-        return this.goToPosCommand(m_aprilTags.getTagPose(aprilTag).get().toPose2d())
+        Pose2d target = m_aprilTags.getTagPose(aprilTag).get().toPose2d();
+        return this.goToPosCommand(target
+            .rotateAround(target.getTranslation(), Rotation2d.k180deg)
+            .transformBy(new Transform2d(-Constants.kRobotDepth/2, 0.0, Rotation2d.kZero)))
             .withName(String.format("Go To AprilTag %d", aprilTag));
     }
 
@@ -273,7 +314,7 @@ public class SwerveDrivetrain extends SubsystemBase {
         builder.addDoubleProperty("Back Left Velocity", m_modules[3]::getVelocity, null);
         builder.addDoubleProperty("Back Right Angle", () -> m_modules[2].getSteerAngle().getRadians(), null);
         builder.addDoubleProperty("Back Right Velocity", m_modules[2]::getVelocity, null);
-        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().plus(Rotation2d.kCW_Pi_2).plus(m_chooser.getSelected().getRotation()).getRadians(), null);
+        builder.addDoubleProperty("Robot Angle", () -> this.getGyroscope().plus(Rotation2d.kCCW_Pi_2).getRadians(), null);
     }
 
     /**

@@ -45,9 +45,8 @@ public class RobotContainer {
     m_autoChooser.addOption("Go To All April Tags", Autos.goToAllAprilTags(m_drivetrain));
     m_autoChooser.addOption("Drive System Id", Autos.driveSystemId(m_drivetrain));
     m_autoChooser.addOption("Steer System Id", Autos.steerSystemId(m_drivetrain));
-    for (int i = 1; i <= 22; ++i)
-      SmartDashboard.putData(String.format("Go To AprilTag %d", i), m_drivetrain.goToAprilTag(i));
     SmartDashboard.putData("Autonomous Chooser", m_autoChooser);
+    DriverStation.silenceJoystickConnectionWarning(true);
     configureBindings();
   }
 
